@@ -13,6 +13,7 @@ export default clerkMiddleware(async (auth, req) => {
     pathname.startsWith("/site/link-manager") ||
     pathname.startsWith("/site/users") ||
     pathname.startsWith("/api/links") ||
+    pathname.startsWith("/api/link-folders") ||
     pathname.startsWith("/api/admin/users");
 
   if (!requiresStaff) return;

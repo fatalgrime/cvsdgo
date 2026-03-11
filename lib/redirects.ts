@@ -1,6 +1,7 @@
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { unstable_cache } from "next/cache";
 import type { RedirectRow } from "@/lib/types";
+import { ensureLinkSchema } from "@/lib/link-schema";
 
 const getAllRedirectsCached = unstable_cache(
   async (): Promise<RedirectRow[]> => {
@@ -8,11 +9,25 @@ const getAllRedirectsCached = unstable_cache(
       return [];
     }
 
+    await ensureLinkSchema();
     const sql = getSql();
     const rows = (await sql`
-      SELECT id, slug, url, description, click_count, is_locked, release_at, expires_at
-      FROM redirects
-      ORDER BY slug ASC;
+      SELECT
+        r.id,
+        r.slug,
+        r.url,
+        r.description,
+        r.click_count,
+        r.is_locked,
+        r.release_at,
+        r.expires_at,
+        r.folder_id,
+        f.name AS folder_name,
+        f.is_public AS folder_is_public
+      FROM redirects r
+      LEFT JOIN link_folders f ON f.id = r.folder_id
+      WHERE r.folder_id IS NULL OR f.is_public = true
+      ORDER BY COALESCE(f.name, ''), r.slug ASC;
     `) as RedirectRow[];
 
     return rows;

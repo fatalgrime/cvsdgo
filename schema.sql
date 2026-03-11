@@ -1,8 +1,19 @@
+CREATE TABLE IF NOT EXISTS link_folders (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  is_public BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS link_folders_is_public_idx ON link_folders(is_public);
+
 CREATE TABLE IF NOT EXISTS redirects (
   id BIGSERIAL PRIMARY KEY,
   slug TEXT NOT NULL UNIQUE,
   url TEXT NOT NULL,
   description TEXT,
+  folder_id BIGINT REFERENCES link_folders(id) ON DELETE SET NULL,
   is_locked BOOLEAN NOT NULL DEFAULT FALSE,
   password_hash TEXT,
   release_at TIMESTAMPTZ,
@@ -13,6 +24,7 @@ CREATE TABLE IF NOT EXISTS redirects (
 );
 
 CREATE INDEX IF NOT EXISTS redirects_slug_idx ON redirects(slug);
+CREATE INDEX IF NOT EXISTS redirects_folder_id_idx ON redirects(folder_id);
 
 CREATE TABLE IF NOT EXISTS reports (
   id BIGSERIAL PRIMARY KEY,

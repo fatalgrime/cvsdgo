@@ -7,6 +7,17 @@ export type RedirectRow = {
   is_locked?: boolean | null;
   release_at?: string | Date | null;
   expires_at?: string | Date | null;
+  folder_id?: number | null;
+  folder_name?: string | null;
+  folder_is_public?: boolean | null;
+};
+
+export type LinkFolderRow = {
+  id: number;
+  name: string;
+  is_public: boolean;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 export type ReportRow = {
