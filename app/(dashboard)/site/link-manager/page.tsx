@@ -43,6 +43,7 @@ export default function LinkManagerPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isFolderSaving, setIsFolderSaving] = useState(false);
+  const [movingLinkId, setMovingLinkId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<RedirectRow | null>(null);
   const [portalReady, setPortalReady] = useState(false);
   const { isSignedIn } = useAuth();
@@ -202,6 +203,45 @@ export default function LinkManagerPage() {
     } catch (error) {
       const message = (error as Error).message || "Unable to delete link.";
       toast({ title: "Unable to delete link", description: message, variant: "error" });
+    }
+  }
+
+  async function moveLinkToFolder(link: RedirectRow, nextFolderId: string) {
+    setMovingLinkId(link.id);
+    try {
+      const response = await fetch(`/api/links/${link.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: link.slug,
+          url: link.url,
+          description: link.description ?? "",
+          folderId: nextFolderId ? Number(nextFolderId) : null,
+          isLocked: Boolean(link.is_locked),
+          password: "",
+          releaseAt: link.release_at ? new Date(link.release_at).toISOString() : null,
+          expiresAt: link.expires_at ? new Date(link.expires_at).toISOString() : null,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Unable to move link.");
+      }
+
+      await loadData();
+      toast({
+        title: "Link moved",
+        description: nextFolderId
+          ? `Moved go.cvsd.live/${link.slug} to a folder`
+          : `Removed go.cvsd.live/${link.slug} from folder`,
+        variant: "success",
+      });
+    } catch (error) {
+      const message = (error as Error).message || "Unable to move link.";
+      toast({ title: "Unable to move link", description: message, variant: "error" });
+    } finally {
+      setMovingLinkId(null);
     }
   }
 
@@ -375,6 +415,28 @@ export default function LinkManagerPage() {
                                 )}
                               </p>
                             )}
+                            <div className="mt-3 max-w-xs">
+                              <label
+                                className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500"
+                                htmlFor={`move-folder-${link.id}`}
+                              >
+                                Move To Folder
+                              </label>
+                              <select
+                                id={`move-folder-${link.id}`}
+                                value={link.folder_id ? String(link.folder_id) : ""}
+                                disabled={movingLinkId === link.id}
+                                onChange={(event) => moveLinkToFolder(link, event.target.value)}
+                                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 disabled:cursor-not-allowed disabled:bg-slate-100"
+                              >
+                                <option value="">No folder</option>
+                                {sortedFolders.map((folder) => (
+                                  <option key={folder.id} value={folder.id}>
+                                    {folder.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
