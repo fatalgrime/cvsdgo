@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Lora } from "next/font/google";
 import { ToastProvider } from "@/components/toast-provider";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const inter = Inter({
@@ -24,7 +25,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${lora.variable}`}>
       <body className="min-h-screen bg-surface-50 font-sans text-oxford-700 antialiased">
         <ClerkProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <div className="flex min-h-screen flex-col">
+              <div className="flex-1">{children}</div>
+              <SiteFooter />
+            </div>
+          </ToastProvider>
         </ClerkProvider>
       </body>
     </html>

@@ -52,7 +52,30 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
       }
       groups.get(key)?.links.push(link);
     }
-    return Array.from(groups.values()).sort((a, b) => a.title.localeCompare(b.title));
+    const hasPolicyText = (link: RedirectRow) => {
+      const text = `${link.slug} ${link.description ?? ""} ${link.url}`.toLowerCase();
+      return text.includes("policy") || text.includes("policies");
+    };
+
+    return Array.from(groups.values())
+      .map((group) => {
+        const sorted = [...group.links].sort((a, b) => a.slug.localeCompare(b.slug));
+        if (group.title.toLowerCase() === "general") {
+          sorted.sort((a, b) => {
+            const aIsPolicy = hasPolicyText(a) ? 0 : 1;
+            const bIsPolicy = hasPolicyText(b) ? 0 : 1;
+            if (aIsPolicy !== bIsPolicy) return aIsPolicy - bIsPolicy;
+            return a.slug.localeCompare(b.slug);
+          });
+        }
+        return { ...group, links: sorted };
+      })
+      .sort((a, b) => {
+        const aGeneral = a.title.toLowerCase() === "general" ? 0 : 1;
+        const bGeneral = b.title.toLowerCase() === "general" ? 0 : 1;
+        if (aGeneral !== bGeneral) return aGeneral - bGeneral;
+        return a.title.localeCompare(b.title);
+      });
   }, [filteredLinks]);
 
   async function handleCopy(slug: string) {
