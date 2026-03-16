@@ -123,14 +123,23 @@ export function RedirectLanding() {
         body: JSON.stringify({ password }),
       });
       if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as RedirectResponse | null;
-        if (data?.inactive) {
+        const contentType = response.headers.get("content-type") ?? "";
+        const payload = contentType.includes("application/json")
+          ? ((await response.json().catch(() => null)) as RedirectResponse | null)
+          : await response.text().catch(() => "");
+
+        if (typeof payload === "object" && payload?.inactive) {
+          const data = payload as RedirectResponse;
           setInactiveReason(data.reason ?? "scheduled");
           setIsLocked(false);
           setDestinationUrl(null);
           return;
         }
-        const message = await response.text();
+
+        const message =
+          typeof payload === "string"
+            ? payload
+            : null;
         throw new Error(message || "Invalid password.");
       }
       const data = (await response.json()) as RedirectResponse;
