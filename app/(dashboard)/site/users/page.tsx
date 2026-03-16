@@ -173,21 +173,21 @@ export default function UsersPage() {
                       <p className="text-sm font-semibold text-oxford-700">{user.name}</p>
                       <p className="mt-1 text-sm text-slate-600">{user.email ?? "No email"}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em]">
-                        <span className="rounded-full border border-slate-300 bg-slate-50 px-2 py-1 text-slate-600">
+                        <span className="rounded-full border border-slate-300 bg-slate-50 px-2 py-1 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                           {accountStatus}
                         </span>
                         {user.allowlisted && (
-                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700">
+                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200">
                             Allowlisted
                           </span>
                         )}
                         {user.admin && (
-                          <span className="rounded-full border border-oxford-200 bg-oxford-50 px-2 py-1 text-oxford-700">
+                          <span className="rounded-full border border-oxford-200 bg-slate-50 px-2 py-1 text-oxford-700 dark:border-oxford-700 dark:bg-oxford-900 dark:text-slate-100">
                             Admin Access
                           </span>
                         )}
                         {user.reportStaff && (
-                          <span className="rounded-full border border-deepforest-200 bg-deepforest-50 px-2 py-1 text-deepforest-700">
+                          <span className="rounded-full border border-deepforest-200 bg-slate-50 px-2 py-1 text-deepforest-700 dark:border-deepforest-700 dark:bg-deepforest-900/80 dark:text-slate-100">
                             Report Staff
                           </span>
                         )}
