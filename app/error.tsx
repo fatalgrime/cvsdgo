@@ -26,7 +26,7 @@ export default function ErrorPage({ reset }: ErrorPageProps) {
           <button
             type="button"
             onClick={reset}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-oxford-700 transition hover:border-oxford-400"
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-oxford-700 transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300"
           >
             Try Again
           </button>

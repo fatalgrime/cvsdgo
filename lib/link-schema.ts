@@ -33,7 +33,10 @@ async function runEnsureLinkSchema(): Promise<void> {
 
 export async function ensureLinkSchema(): Promise<void> {
   if (!ensureLinkSchemaPromise) {
-    ensureLinkSchemaPromise = runEnsureLinkSchema();
+    ensureLinkSchemaPromise = runEnsureLinkSchema().catch((error) => {
+      ensureLinkSchemaPromise = null;
+      throw error;
+    });
   }
 
   await ensureLinkSchemaPromise;

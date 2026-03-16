@@ -156,7 +156,7 @@ export function RedirectLanding() {
 
   return (
     <main className="min-h-screen bg-surface-50 px-4 py-12">
-      <div className="mx-auto w-full max-w-2xl rounded-md border border-slate-200 bg-white p-6">
+      <div className="mx-auto w-full max-w-2xl rounded-md border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-950">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">CVSD Go</p>
         <h1 className="mt-3 font-serif text-3xl leading-tight text-oxford-700 md:text-4xl">Redirecting</h1>
 
@@ -205,7 +205,7 @@ export function RedirectLanding() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Enter password"
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-oxford-300"
               />
               {passwordError && <p className="text-sm text-amber-700">{passwordError}</p>}
               <button
@@ -245,7 +245,7 @@ export function RedirectLanding() {
           <button
             type="button"
             onClick={handleBack}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-oxford-700 transition hover:border-oxford-400"
+            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-oxford-700 transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300"
           >
             Back
           </button>

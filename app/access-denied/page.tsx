@@ -4,7 +4,7 @@ import { LogoutButton } from "@/components/logout-button";
 export default function AccessDeniedPage() {
   return (
     <main className="min-h-screen bg-surface-50 px-4 py-12">
-      <div className="mx-auto w-full max-w-2xl rounded-md border border-slate-200 bg-white p-6 text-center">
+      <div className="mx-auto w-full max-w-2xl rounded-md border border-slate-200 bg-white p-6 text-center dark:border-slate-800 dark:bg-slate-950">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Access Declined</p>
         <h1 className="mt-3 font-serif text-3xl leading-tight text-oxford-700 md:text-4xl">
           You don&apos;t have permission

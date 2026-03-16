@@ -4,18 +4,23 @@
 
 :root {
   color-scheme: light;
-  --hero-a: #f5f9ff;
-  --hero-b: #f1f7f3;
-  --hero-c: #eef2ff;
+  --hero-a: #f8fafc;
+  --hero-b: #f8fafc;
+  --hero-c: #f8fafc;
   --ring-soft: rgba(27, 38, 59, 0.12);
+}
+
+.dark {
+  color-scheme: dark;
+  --hero-a: #18181b;
+  --hero-b: #18181b;
+  --hero-c: #18181b;
+  --ring-soft: rgba(148, 163, 184, 0.24);
 }
 
 body {
   @apply min-h-screen text-oxford-700 antialiased;
-  background:
-    radial-gradient(circle at 10% -10%, var(--hero-a) 0%, transparent 42%),
-    radial-gradient(circle at 90% 0%, var(--hero-b) 0%, transparent 38%),
-    linear-gradient(180deg, var(--hero-c) 0%, #f8fafc 28%, #f8fafc 100%);
+  background: var(--hero-c);
 }
 
 ::selection {
@@ -28,4 +33,102 @@ body {
 
 .panel-strong {
   @apply rounded-2xl border border-slate-200 bg-white shadow-md;
+}
+
+.dark body {
+  @apply text-slate-100;
+}
+
+.dark ::selection {
+  @apply bg-oxford-600 text-white;
+}
+
+.dark .panel {
+  @apply border-slate-800/80 bg-[#13233f]/90 shadow-black/30;
+}
+
+.dark .panel-strong {
+  @apply border-slate-800 bg-[#10203a] shadow-black/30;
+}
+
+.dark .bg-surface-50 {
+  background-color: #18181b;
+}
+
+.dark .bg-white {
+  background-color: #13233f;
+}
+
+.dark .logo-shell {
+  background-color: white;
+  border-color: rgb(203 213 225);
+}
+
+.dark .logo-shell span {
+  color: rgb(27 38 59);
+  border-color: rgb(203 213 225);
+}
+
+.dark .bg-white\/80 {
+  background-color: rgb(19 35 63 / 0.8);
+}
+
+.dark .bg-white\/85 {
+  background-color: rgb(19 35 63 / 0.85);
+}
+
+.dark .bg-white\/90 {
+  background-color: rgb(19 35 63 / 0.9);
+}
+
+.dark .bg-slate-50 {
+  background-color: rgb(16 32 58 / 0.88);
+}
+
+.dark .text-oxford-700 {
+  color: rgb(241 245 249);
+}
+
+.dark .text-deepforest-700 {
+  color: rgb(226 232 240);
+}
+
+.dark .text-slate-500 {
+  color: rgb(203 213 225);
+}
+
+.dark .text-slate-600,
+.dark .text-slate-700 {
+  color: rgb(203 213 225);
+}
+
+.dark .border-slate-200,
+.dark .border-slate-200\/80 {
+  border-color: rgb(30 41 59);
+}
+
+.dark .border-slate-300 {
+  border-color: rgb(51 65 85);
+}
+
+.dark .border-oxford-200 {
+  border-color: rgb(51 65 85);
+}
+
+.dark .shadow-sm,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl {
+  --tw-shadow-color: rgb(2 6 23 / 0.45);
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  color: rgb(241 245 249);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: rgb(148 163 184);
 }

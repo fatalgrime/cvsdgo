@@ -11,7 +11,7 @@ export default async function HomePage() {
   return (
     <section className="space-y-6">
       <div className="panel-strong overflow-hidden p-6 md:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Cedar Valley School District</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700 dark:text-slate-200">Cedar Valley School District</p>
         <h1 className="mt-3 max-w-4xl font-serif text-3xl leading-tight text-oxford-700 md:text-5xl">
           CVSD Go Public Link Directory
         </h1>

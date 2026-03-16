@@ -95,7 +95,7 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search shortcut, destination, or keyword..."
-          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-oxford-700 outline-none transition placeholder:text-slate-500 focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
+          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-oxford-700 outline-none transition placeholder:text-slate-500 focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:border-oxford-300"
           aria-label="Search CVSD Go links"
         />
       </div>
@@ -107,7 +107,7 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-deepforest-700">
                 {group.title}
               </h2>
-              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600">
+              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                 {group.links.length}
               </span>
             </div>
@@ -120,7 +120,7 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
                     key={link.id}
                     className="panel group flex h-full flex-col p-5 transition hover:-translate-y-0.5 hover:border-oxford-300 hover:shadow-md"
                   >
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-deepforest-700">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-deepforest-700 dark:text-slate-200">
                       {shortName}
                     </p>
                     <h3 className="mt-2 min-h-[3.5rem] line-clamp-2 text-lg font-semibold text-oxford-700">
@@ -139,7 +139,7 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
                       </Link>
                       <button
                         onClick={() => handleCopy(link.slug)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-oxford-700 transition hover:border-oxford-400 hover:text-oxford-700"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-oxford-700 transition hover:border-oxford-400 hover:text-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300 dark:hover:text-slate-100"
                         type="button"
                         aria-label={copiedSlug === link.slug ? "Copied" : "Copy link"}
                         title={copiedSlug === link.slug ? "Copied" : "Copy link"}
