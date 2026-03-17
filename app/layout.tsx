@@ -18,7 +18,8 @@ const lora = Lora({
 
 export const metadata: Metadata = {
   title: "CVSD Go",
-  description: "Cedar Valley School District link redirection and discovery dashboard"
+  description:
+    "The official district link shortener service powered by and for Cedar Valley School District. Ditch those long links and go.cvsd.live!"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
