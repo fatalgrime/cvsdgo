@@ -15,9 +15,9 @@ export async function GET(): Promise<Response> {
   await ensureLinkSchema();
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, name, is_public, created_at, updated_at
+    SELECT id, name, is_public, sort_order, created_at, updated_at
     FROM link_folders
-    ORDER BY name ASC;
+    ORDER BY sort_order ASC, name ASC;
   `) as LinkFolderRow[];
 
   return Response.json({ folders: rows });
@@ -43,9 +43,13 @@ export async function POST(request: Request): Promise<Response> {
   const sql = getSql();
   try {
     const rows = (await sql`
-      INSERT INTO link_folders (name, is_public)
-      VALUES (${name}, ${isPublic})
-      RETURNING id, name, is_public, created_at, updated_at;
+      INSERT INTO link_folders (name, is_public, sort_order)
+      VALUES (
+        ${name},
+        ${isPublic},
+        COALESCE((SELECT MAX(sort_order) FROM link_folders), -1) + 1
+      )
+      RETURNING id, name, is_public, sort_order, created_at, updated_at;
     `) as LinkFolderRow[];
 
     revalidateTag("redirects");

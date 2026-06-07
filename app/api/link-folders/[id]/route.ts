@@ -21,12 +21,17 @@ export async function PUT(
 
   const name = body.name === undefined ? undefined : String(body.name ?? "").trim();
   const isPublic = body.isPublic === undefined ? undefined : Boolean(body.isPublic);
+  const sortOrder = body.sortOrder === undefined ? undefined : Number(body.sortOrder);
 
   if (name !== undefined && !name) {
     return new Response("Folder name is required", { status: 400 });
   }
 
-  if (name === undefined && isPublic === undefined) {
+  if (sortOrder !== undefined && Number.isNaN(sortOrder)) {
+    return new Response("Invalid folder sort order", { status: 400 });
+  }
+
+  if (name === undefined && isPublic === undefined && sortOrder === undefined) {
     return new Response("Nothing to update", { status: 400 });
   }
 
@@ -37,9 +42,10 @@ export async function PUT(
       SET
         name = COALESCE(${name ?? null}, name),
         is_public = COALESCE(${isPublic ?? null}, is_public),
+        sort_order = COALESCE(${sortOrder ?? null}, sort_order),
         updated_at = NOW()
       WHERE id = ${id}
-      RETURNING id, name, is_public, created_at, updated_at;
+      RETURNING id, name, is_public, sort_order, created_at, updated_at;
     `) as LinkFolderRow[];
 
     if (rows.length === 0) {

@@ -43,6 +43,7 @@ export default function LinkManagerPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isFolderSaving, setIsFolderSaving] = useState(false);
+  const [isFolderReordering, setIsFolderReordering] = useState(false);
   const [movingLinkId, setMovingLinkId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<RedirectRow | null>(null);
   const [portalReady, setPortalReady] = useState(false);
@@ -62,7 +63,12 @@ export default function LinkManagerPage() {
   }, [links]);
 
   const sortedFolders = useMemo(() => {
-    return [...folders].sort((a, b) => a.name.localeCompare(b.name));
+    return [...folders].sort((a, b) => {
+      const orderA = a.sort_order ?? 0;
+      const orderB = b.sort_order ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name);
+    });
   }, [folders]);
 
   const loadData = useCallback(async () => {
@@ -319,6 +325,44 @@ export default function LinkManagerPage() {
     }
   }
 
+  async function reorderFolder(folderId: number, direction: -1 | 1) {
+    const currentList = sortedFolders;
+    const index = currentList.findIndex((folder) => folder.id === folderId);
+    const targetIndex = index + direction;
+    if (index === -1 || targetIndex < 0 || targetIndex >= currentList.length) {
+      return;
+    }
+
+    const nextFolders = [...currentList];
+    [nextFolders[index], nextFolders[targetIndex]] = [nextFolders[targetIndex], nextFolders[index]];
+
+    const orderedIds = nextFolders.map((folder) => folder.id);
+    setIsFolderReordering(true);
+    setFolders(nextFolders.map((folder, idx) => ({ ...folder, sort_order: idx })));
+
+    try {
+      const response = await fetch("/api/link-folders/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Unable to reorder folders.");
+      }
+
+      await loadData();
+      toast({ title: "Folder order updated", variant: "success" });
+    } catch (error) {
+      const message = (error as Error).message || "Unable to reorder folders.";
+      toast({ title: "Unable to reorder folders", description: message, variant: "error" });
+      await loadData();
+    } finally {
+      setIsFolderReordering(false);
+    }
+  }
+
   return (
     <section className="space-y-6">
       <div className="rounded-md border border-slate-200 bg-white p-6">
@@ -492,13 +536,31 @@ export default function LinkManagerPage() {
               </form>
 
               <ul className="mt-4 space-y-2">
-                {sortedFolders.map((folder) => (
+                {sortedFolders.map((folder, index) => (
                   <li key={folder.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 px-3 py-2">
                     <p className="text-sm text-oxford-700">
                       {folder.name}
                       <span className="ml-2 text-xs text-slate-500">{folder.is_public ? "Public" : "Private"}</span>
                     </p>
                     <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => reorderFolder(folder.id, -1)}
+                        disabled={isFolderReordering || index === 0}
+                        aria-label={`Move ${folder.name} up`}
+                        className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-oxford-700 transition hover:border-oxford-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => reorderFolder(folder.id, 1)}
+                        disabled={isFolderReordering || index === sortedFolders.length - 1}
+                        aria-label={`Move ${folder.name} down`}
+                        className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-oxford-700 transition hover:border-oxford-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                      >
+                        ↓
+                      </button>
                       <button
                         type="button"
                         onClick={() => toggleFolderVisibility(folder)}

@@ -16,6 +16,7 @@ export type LinkFolderRow = {
   id: number;
   name: string;
   is_public: boolean;
+  sort_order: number;
   created_at: string | Date;
   updated_at: string | Date;
 };

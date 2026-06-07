@@ -23,6 +23,22 @@ async function runEnsureLinkSchema(): Promise<void> {
   `;
 
   await sql`
+    ALTER TABLE link_folders
+    ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+  `;
+
+  await sql`
+    WITH ordered AS (
+      SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) - 1 AS rank
+      FROM link_folders
+    )
+    UPDATE link_folders
+    SET sort_order = ordered.rank
+    FROM ordered
+    WHERE link_folders.id = ordered.id AND link_folders.sort_order = 0;
+  `;
+
+  await sql`
     CREATE INDEX IF NOT EXISTS redirects_folder_id_idx ON redirects(folder_id);
   `;
 
