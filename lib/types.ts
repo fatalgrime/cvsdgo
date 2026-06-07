@@ -10,6 +10,7 @@ export type RedirectRow = {
   folder_id?: number | null;
   folder_name?: string | null;
   folder_is_public?: boolean | null;
+  folder_sort_order?: number | null;
 };
 
 export type LinkFolderRow = {

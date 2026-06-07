@@ -41,13 +41,14 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
   }, [links, deferredQuery]);
 
   const groupedLinks = useMemo(() => {
-    const groups = new Map<string, { title: string; links: RedirectRow[] }>();
+    const groups = new Map<string, { title: string; links: RedirectRow[]; folderSortOrder?: number | null }>();
     for (const link of filteredLinks) {
       const key = link.folder_id ? `folder:${link.folder_id}` : "folder:none";
       if (!groups.has(key)) {
         groups.set(key, {
           title: link.folder_name?.trim() ? link.folder_name : "General",
           links: [],
+          folderSortOrder: link.folder_sort_order ?? null,
         });
       }
       groups.get(key)?.links.push(link);
@@ -71,9 +72,11 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
         return { ...group, links: sorted };
       })
       .sort((a, b) => {
-        const aGeneral = a.title.toLowerCase() === "general" ? 0 : 1;
-        const bGeneral = b.title.toLowerCase() === "general" ? 0 : 1;
-        if (aGeneral !== bGeneral) return aGeneral - bGeneral;
+        const aSort = a.folderSortOrder ?? -1;
+        const bSort = b.folderSortOrder ?? -1;
+        if (aSort !== bSort) return aSort - bSort;
+        if (a.title.toLowerCase() === "general") return -1;
+        if (b.title.toLowerCase() === "general") return 1;
         return a.title.localeCompare(b.title);
       });
   }, [filteredLinks]);

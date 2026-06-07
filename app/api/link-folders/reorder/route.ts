@@ -12,8 +12,10 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   await ensureLinkSchema();
-  const body = await request.json();
-  const orderedIds = Array.isArray(body.orderedIds) ? body.orderedIds.map((id: unknown) => Number(id)) : [];
+  const body = (await request.json()) as { orderedIds?: unknown };
+  const orderedIds = Array.isArray(body.orderedIds)
+    ? (body.orderedIds as unknown[]).map((id) => Number(id))
+    : [];
 
   if (orderedIds.length === 0 || !orderedIds.every((id) => Number.isInteger(id) && id > 0)) {
     return new Response("Invalid folder order", { status: 400 });
