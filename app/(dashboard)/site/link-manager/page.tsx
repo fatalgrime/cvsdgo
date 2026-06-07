@@ -52,6 +52,18 @@ export default function LinkManagerPage() {
 
   const isEditing = form.id !== null;
 
+  function notifyLinkDirectoryUpdate() {
+    if (typeof window === "undefined") return;
+
+    window.dispatchEvent(new Event("cvsdgo:refresh-directory"));
+
+    if (typeof BroadcastChannel !== "undefined") {
+      const channel = new BroadcastChannel("cvsdgo");
+      channel.postMessage("refresh-directory");
+      channel.close();
+    }
+  }
+
   const sortedLinks = useMemo(() => {
     return [...links].sort((a, b) => {
       const folderA = (a.folder_name ?? "").toLowerCase();
@@ -180,6 +192,7 @@ export default function LinkManagerPage() {
 
       await loadData();
       resetForm();
+      notifyLinkDirectoryUpdate();
       toast({
         title: isEditing ? "Link updated" : "Link created",
         description: `go.cvsd.live/${payload.slug}`,
@@ -236,6 +249,7 @@ export default function LinkManagerPage() {
       }
 
       await loadData();
+      notifyLinkDirectoryUpdate();
       toast({
         title: "Link moved",
         description: nextFolderId
@@ -271,6 +285,7 @@ export default function LinkManagerPage() {
       const folder = data.folder as LinkFolderRow | undefined;
       setFolderForm(EMPTY_FOLDER_FORM);
       await loadData();
+      notifyLinkDirectoryUpdate();
       if (folder) {
         setForm((current) => ({ ...current, folderId: String(folder.id) }));
       }
@@ -297,6 +312,7 @@ export default function LinkManagerPage() {
       }
 
       await loadData();
+      notifyLinkDirectoryUpdate();
       toast({
         title: !folder.is_public ? "Folder is now public" : "Folder is now private",
         description: folder.name,
@@ -317,6 +333,7 @@ export default function LinkManagerPage() {
       }
 
       await loadData();
+      notifyLinkDirectoryUpdate();
       setForm((current) => (current.folderId === String(folder.id) ? { ...current, folderId: "" } : current));
       toast({ title: "Folder deleted", description: folder.name, variant: "warning" });
     } catch (error) {
@@ -353,6 +370,7 @@ export default function LinkManagerPage() {
       }
 
       await loadData();
+      notifyLinkDirectoryUpdate();
       toast({ title: "Folder order updated", variant: "success" });
     } catch (error) {
       const message = (error as Error).message || "Unable to reorder folders.";

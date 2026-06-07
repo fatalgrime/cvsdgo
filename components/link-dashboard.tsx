@@ -19,7 +19,30 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
     const interval = setInterval(() => {
       router.refresh();
     }, 15000);
-    return () => clearInterval(interval);
+
+    const handleRefreshEvent = () => {
+      router.refresh();
+    };
+
+    window.addEventListener("cvsdgo:refresh-directory", handleRefreshEvent);
+
+    let channel: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      channel = new BroadcastChannel("cvsdgo");
+      channel.addEventListener("message", (event) => {
+        if (event.data === "refresh-directory") {
+          handleRefreshEvent();
+        }
+      });
+    }
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("cvsdgo:refresh-directory", handleRefreshEvent);
+      if (channel) {
+        channel.close();
+      }
+    };
   }, [router]);
 
   const filteredLinks = useMemo(() => {
