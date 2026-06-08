@@ -562,7 +562,7 @@ export default function UsersPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
