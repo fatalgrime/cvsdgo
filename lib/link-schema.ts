@@ -35,7 +35,11 @@ async function runEnsureLinkSchema(): Promise<void> {
     UPDATE link_folders
     SET sort_order = ordered.rank
     FROM ordered
-    WHERE link_folders.id = ordered.id AND link_folders.sort_order = 0;
+    WHERE link_folders.id = ordered.id
+      AND link_folders.sort_order = 0
+      AND NOT EXISTS (
+        SELECT 1 FROM link_folders WHERE sort_order != 0
+      );
   `;
 
   await sql`

@@ -14,6 +14,7 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [isDirectoryUpdated, setIsDirectoryUpdated] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -22,6 +23,8 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
 
     const handleRefreshEvent = () => {
       router.refresh();
+      setIsDirectoryUpdated(true);
+      window.setTimeout(() => setIsDirectoryUpdated(false), 1800);
     };
 
     window.addEventListener("cvsdgo:refresh-directory", handleRefreshEvent);
@@ -212,6 +215,12 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
         <div className="panel mt-8 p-8 text-center">
           <p className="text-lg font-semibold text-oxford-700">No links matched your search.</p>
           <p className="mt-2 text-sm text-slate-600">Try a different keyword.</p>
+        </div>
+      )}
+
+      {isDirectoryUpdated && (
+        <div className="fixed bottom-6 right-6 z-50 rounded-full border border-oxford-300 bg-white px-4 py-2 text-sm font-semibold text-oxford-700 shadow-lg shadow-slate-200">
+          Directory updated
         </div>
       )}
     </section>
