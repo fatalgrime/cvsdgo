@@ -561,24 +561,28 @@ export default function LinkManagerPage() {
                       <span className="ml-2 text-xs text-slate-500">{folder.is_public ? "Public" : "Private"}</span>
                     </p>
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => reorderFolder(folder.id, -1)}
-                        disabled={isFolderReordering || index === 0}
-                        aria-label={`Move ${folder.name} up`}
-                        className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-oxford-700 transition hover:border-oxford-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => reorderFolder(folder.id, 1)}
-                        disabled={isFolderReordering || index === sortedFolders.length - 1}
-                        aria-label={`Move ${folder.name} down`}
-                        className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-oxford-700 transition hover:border-oxford-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                      >
-                        ↓
-                      </button>
+                      {index > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => reorderFolder(folder.id, -1)}
+                          disabled={isFolderReordering}
+                          aria-label={`Move ${folder.name} up`}
+                          className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-oxford-700 transition hover:border-oxford-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        >
+                          ↑
+                        </button>
+                      )}
+                      {index < sortedFolders.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => reorderFolder(folder.id, 1)}
+                          disabled={isFolderReordering}
+                          aria-label={`Move ${folder.name} down`}
+                          className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-oxford-700 transition hover:border-oxford-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        >
+                          ↓
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => toggleFolderVisibility(folder)}
