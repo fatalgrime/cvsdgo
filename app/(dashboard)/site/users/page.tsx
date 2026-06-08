@@ -231,6 +231,12 @@ export default function UsersPage() {
     setResetStrikes(false);
   }
 
+  function handleBackdropClick(event: React.MouseEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget) {
+      closeReportModal();
+    }
+  }
+
   const activeReportBadge = (user: ManagedUser) => {
     if (user.reportBanType === "permanent") {
       return "Permanently banned from reporting";
@@ -382,8 +388,11 @@ export default function UsersPage() {
         </div>
 
         {selectedUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-            <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={handleBackdropClick}
+          >
+            <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in-95 duration-300">
               <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                 <div>
                   <h2 className="text-lg font-semibold text-oxford-800">Report history for {selectedUser.name}</h2>
@@ -392,9 +401,12 @@ export default function UsersPage() {
                 <button
                   type="button"
                   onClick={closeReportModal}
-                  className="rounded-full border border-slate-300 bg-white p-3 text-slate-600 transition hover:border-slate-400 hover:text-oxford-700"
+                  className="rounded-full border border-slate-300 bg-white p-2 text-slate-600 transition hover:border-slate-400 hover:text-oxford-700 hover:bg-slate-50 active:scale-95"
+                  aria-label="Close modal"
                 >
-                  Close
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
 
