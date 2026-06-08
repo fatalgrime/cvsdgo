@@ -3,6 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { useToast } from "@/components/toast-provider";
+import type { ReportCommentRow, ReportRow } from "@/lib/types";
+
+type ReportingProfile = {
+  reportBanType: string;
+  reportBannedUntil: string | null;
+  reportLimitHourly: number;
+  reportLimitDaily: number;
+  reportStrikes: number;
+  reportLastStrikeAt: string | null;
+};
 
 type ManagedUser = {
   id: string;
@@ -19,10 +29,31 @@ type ManagedUser = {
   reportStaff: boolean;
   metadataAdmin: boolean;
   metadataReportStaff: boolean;
+  reportBanType: string;
+  reportBannedUntil: string | null;
+  reportLimitHourly: number;
+  reportLimitDaily: number;
+  reportStrikes: number;
+  reportLastStrikeAt: string | null;
 };
 
 type UsersResponse = {
   users: ManagedUser[];
+};
+
+type UserReportResponse = {
+  profile: ReportingProfile;
+  reports: ReportRow[];
+  comments: ReportCommentRow[];
+};
+
+const initialReportingProfile: ReportingProfile = {
+  reportBanType: "none",
+  reportBannedUntil: null,
+  reportLimitHourly: 0,
+  reportLimitDaily: 0,
+  reportStrikes: 0,
+  reportLastStrikeAt: null,
 };
 
 export default function UsersPage() {
@@ -32,6 +63,18 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<ReportingProfile>(initialReportingProfile);
+  const [reportHistory, setReportHistory] = useState<ReportRow[]>([]);
+  const [reportComments, setReportComments] = useState<ReportCommentRow[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [savingReportSettings, setSavingReportSettings] = useState(false);
+  const [reportBanType, setReportBanType] = useState("none");
+  const [reportBannedUntil, setReportBannedUntil] = useState<string>("");
+  const [reportLimitHourly, setReportLimitHourly] = useState<string>("");
+  const [reportLimitDaily, setReportLimitDaily] = useState<string>("");
+  const [resetStrikes, setResetStrikes] = useState(false);
 
   const filteredUsers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -115,13 +158,96 @@ export default function UsersPage() {
     }
   }
 
+  async function loadReportHistory(user: ManagedUser) {
+    setReportLoading(true);
+    setReportError(null);
+    setSelectedUser(user);
+    setReportHistory([]);
+    setReportComments([]);
+    setSelectedProfile(initialReportingProfile);
+    setResetStrikes(false);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`);
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const data = (await response.json()) as UserReportResponse;
+      setReportHistory(data.reports ?? []);
+      setReportComments(data.comments ?? []);
+      setSelectedProfile(data.profile ?? initialReportingProfile);
+      setReportBanType(data.profile.reportBanType);
+      setReportBannedUntil(data.profile.reportBannedUntil ?? "");
+      setReportLimitHourly(data.profile.reportLimitHourly > 0 ? String(data.profile.reportLimitHourly) : "");
+      setReportLimitDaily(data.profile.reportLimitDaily > 0 ? String(data.profile.reportLimitDaily) : "");
+    } catch (error) {
+      const message = (error as Error).message || "Unable to load report history.";
+      setReportError(message);
+      toast({ title: "Unable to load report history", description: message, variant: "error" });
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
+  async function saveReportingSettings() {
+    if (!selectedUser) return;
+    setSavingReportSettings(true);
+    try {
+      const payload = {
+        reportBanType: reportBanType || "none",
+        bannedUntil: reportBanType === "temporary" ? reportBannedUntil || null : null,
+        limitHourly: reportLimitHourly ? Number(reportLimitHourly) : 0,
+        limitDaily: reportLimitDaily ? Number(reportLimitDaily) : 0,
+        resetStrikes,
+      };
+      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      await loadUsers();
+      await loadReportHistory(selectedUser);
+      toast({ title: "Report profile updated", description: selectedUser.email ?? selectedUser.name, variant: "success" });
+    } catch (error) {
+      toast({ title: "Unable to save report settings", description: (error as Error).message, variant: "error" });
+    } finally {
+      setSavingReportSettings(false);
+      setResetStrikes(false);
+    }
+  }
+
+  function closeReportModal() {
+    setSelectedUser(null);
+    setSelectedProfile(initialReportingProfile);
+    setReportHistory([]);
+    setReportComments([]);
+    setReportError(null);
+    setReportBanType("none");
+    setReportBannedUntil("");
+    setReportLimitHourly("");
+    setReportLimitDaily("");
+    setResetStrikes(false);
+  }
+
+  const activeReportBadge = (user: ManagedUser) => {
+    if (user.reportBanType === "permanent") {
+      return "Permanently banned from reporting";
+    }
+    if (user.reportBanType === "temporary") {
+      return `Reporting suspended until ${new Date(user.reportBannedUntil ?? "").toLocaleString()}`;
+    }
+    return null;
+  };
+
   return (
     <section className="space-y-6">
       <div className="panel-strong p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Users</p>
         <h1 className="mt-3 font-serif text-3xl leading-tight text-oxford-700 md:text-4xl">User Management</h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600 md:text-base">
-          Manage users and access roles.
+          Manage users, access roles, and report moderation settings.
         </p>
       </div>
 
@@ -166,6 +292,7 @@ export default function UsersPage() {
             filteredUsers.map((user) => {
               const isBusy = pending[user.id] === true;
               const accountStatus = user.locked ? "Locked" : "Active";
+              const reportBadge = activeReportBadge(user);
               return (
                 <article key={user.id} className="panel p-4 md:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -189,6 +316,11 @@ export default function UsersPage() {
                         {user.reportStaff && (
                           <span className="rounded-full border border-deepforest-200 bg-slate-50 px-2 py-1 text-deepforest-700 dark:border-deepforest-700 dark:bg-deepforest-900/80 dark:text-slate-100">
                             Report Staff
+                          </span>
+                        )}
+                        {reportBadge && (
+                          <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-100">
+                            {reportBadge}
                           </span>
                         )}
                       </div>
@@ -232,6 +364,14 @@ export default function UsersPage() {
                         >
                           Require Password Reset
                         </button>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => loadReportHistory(user)}
+                          className="rounded-md border border-deepforest-200 bg-deepforest-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-deepforest-700 transition hover:border-deepforest-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          View Report History
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -240,6 +380,168 @@ export default function UsersPage() {
             })
           )}
         </div>
+
+        {selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+            <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-oxford-800">Report history for {selectedUser.name}</h2>
+                  <p className="mt-1 text-sm text-slate-600">Manage report bans, hourly/daily limits, and strike history.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeReportModal}
+                  className="rounded-full border border-slate-300 bg-white p-3 text-slate-600 transition hover:border-slate-400 hover:text-oxford-700"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="space-y-6 p-5">
+                <div className="grid gap-4 lg:grid-cols-[1fr,360px]">
+                  <div className="space-y-4">
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Report profile</p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current ban</p>
+                          <p className="mt-2 text-sm text-slate-700">{selectedProfile.reportBanType}</p>
+                          {selectedProfile.reportBannedUntil && (
+                            <p className="mt-1 text-sm text-slate-500">Until {new Date(selectedProfile.reportBannedUntil).toLocaleString()}</p>
+                          )}
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Report limits</p>
+                          <p className="mt-2 text-sm text-slate-700">Hourly: {selectedProfile.reportLimitHourly || "none"}</p>
+                          <p className="mt-1 text-sm text-slate-700">Daily: {selectedProfile.reportLimitDaily || "none"}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Strikes</p>
+                          <p className="mt-2 text-sm text-slate-700">{selectedProfile.reportStrikes}</p>
+                          {selectedProfile.reportLastStrikeAt && (
+                            <p className="mt-1 text-sm text-slate-500">Last strike {new Date(selectedProfile.reportLastStrikeAt).toLocaleString()}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                      <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Moderation settings</p>
+                      <div className="mt-4 space-y-4">
+                        <label className="block text-sm font-medium text-slate-700">Reporting ban</label>
+                        <select
+                          value={reportBanType}
+                          onChange={(event) => setReportBanType(event.target.value)}
+                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
+                        >
+                          <option value="none">None</option>
+                          <option value="temporary">Temporary</option>
+                          <option value="permanent">Permanent</option>
+                        </select>
+                        {reportBanType === "temporary" && (
+                          <label className="block text-sm font-medium text-slate-700">
+                            Expiration
+                            <input
+                              type="datetime-local"
+                              value={reportBannedUntil}
+                              onChange={(event) => setReportBannedUntil(event.target.value)}
+                              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
+                            />
+                          </label>
+                        )}
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="block text-sm font-medium text-slate-700">
+                            Hourly limit
+                            <input
+                              type="number"
+                              min="0"
+                              value={reportLimitHourly}
+                              onChange={(event) => setReportLimitHourly(event.target.value)}
+                              placeholder="0"
+                              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
+                            />
+                          </label>
+                          <label className="block text-sm font-medium text-slate-700">
+                            Daily limit
+                            <input
+                              type="number"
+                              min="0"
+                              value={reportLimitDaily}
+                              onChange={(event) => setReportLimitDaily(event.target.value)}
+                              placeholder="0"
+                              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
+                            />
+                          </label>
+                        </div>
+                        <label className="flex items-center gap-3 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={resetStrikes}
+                            onChange={(event) => setResetStrikes(event.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
+                          />
+                          Reset strike count
+                        </label>
+                        <button
+                          type="button"
+                          disabled={savingReportSettings}
+                          onClick={saveReportingSettings}
+                          className="rounded-2xl bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Save report settings
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Recent reports</p>
+                    {reportLoading ? (
+                      <p className="mt-4 text-sm text-slate-600">Loading report history…</p>
+                    ) : reportError ? (
+                      <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{reportError}</p>
+                    ) : reportHistory.length === 0 ? (
+                      <p className="mt-4 text-sm text-slate-600">No reports submitted by this user.</p>
+                    ) : (
+                      <div className="mt-4 space-y-3">
+                        {reportHistory.map((report) => (
+                          <div key={report.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex items-center justify-between gap-4 text-sm">
+                              <p className="font-semibold text-slate-800">{report.title}</p>
+                              <span className="rounded-full border border-slate-300 bg-white px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-600">
+                                {report.status}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm text-slate-600">{report.description}</p>
+                            {report.handled_by_name && (
+                              <p className="mt-2 text-xs uppercase tracking-[0.12em] text-slate-500">Handled by {report.handled_by_name}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {reportComments.length > 0 && (
+                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Comments</p>
+                    <div className="mt-4 space-y-3">
+                      {reportComments.map((comment) => (
+                        <div key={comment.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <p className="text-sm font-semibold text-slate-800">Comment on report #{comment.report_id}</p>
+                          <p className="mt-2 text-sm text-slate-600">{comment.body}</p>
+                          <p className="mt-2 text-xs text-slate-500">By {comment.author_name ?? comment.author_user_id} · {new Date(comment.created_at).toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </SignedIn>
     </section>
   );

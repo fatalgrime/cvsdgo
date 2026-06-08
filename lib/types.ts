@@ -32,6 +32,8 @@ export type ReportRow = {
   priority: string;
   status: string;
   metadata: Record<string, unknown> | null;
+  handled_by_user_id?: string | null;
+  handled_by_name?: string | null;
   created_at: string | Date;
   updated_at: string | Date;
 };

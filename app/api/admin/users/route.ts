@@ -1,5 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getAccessProfileForUser, getCVSDGoRoleMetadata, isAllowedUser } from "@/lib/access";
+import { getSql, hasDatabaseUrl } from "@/lib/db";
+import { ensureReportSchema } from "@/lib/report-schema";
 
 type AdminUserView = {
   id: string;
@@ -16,6 +18,12 @@ type AdminUserView = {
   reportStaff: boolean;
   metadataAdmin: boolean;
   metadataReportStaff: boolean;
+  reportBanType: string;
+  reportBannedUntil: string | null;
+  reportLimitHourly: number;
+  reportLimitDaily: number;
+  reportStrikes: number;
+  reportLastStrikeAt: string | null;
 };
 
 function getDisplayName(firstName: string | null, lastName: string | null, username: string | null): string {
@@ -67,12 +75,52 @@ export async function GET(): Promise<Response> {
         reportStaff: access.canManageReports,
         metadataAdmin: roles.admin,
         metadataReportStaff: roles.reportStaff,
+        reportBanType: "none",
+        reportBannedUntil: null,
+        reportLimitHourly: 0,
+        reportLimitDaily: 0,
+        reportStrikes: 0,
+        reportLastStrikeAt: null,
       });
     }
 
     offset += batch.length;
     if (batch.length < limit || offset >= result.totalCount) {
       break;
+    }
+  }
+
+  if (hasDatabaseUrl()) {
+    await ensureReportSchema();
+    const userIds = users.map((user) => user.id);
+    if (userIds.length > 0) {
+      const sql = getSql();
+      const profileRows = (await sql`
+        SELECT user_id, report_ban_type, banned_until, limit_hourly, limit_daily, strikes, last_strike_at
+        FROM reporting_profiles
+        WHERE user_id = ANY(${userIds}::text[])
+      `) as {
+        user_id: string;
+        report_ban_type: string;
+        banned_until: string | null;
+        limit_hourly: number;
+        limit_daily: number;
+        strikes: number;
+        last_strike_at: string | null;
+      }[];
+
+      const profileMap = new Map(profileRows.map((profile) => [profile.user_id, profile]));
+      for (const user of users) {
+        const profile = profileMap.get(user.id);
+        if (profile) {
+          user.reportBanType = profile.report_ban_type;
+          user.reportBannedUntil = profile.banned_until;
+          user.reportLimitHourly = profile.limit_hourly;
+          user.reportLimitDaily = profile.limit_daily;
+          user.reportStrikes = profile.strikes;
+          user.reportLastStrikeAt = profile.last_strike_at;
+        }
+      }
     }
   }
 

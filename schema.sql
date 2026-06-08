@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS reports (
   priority TEXT NOT NULL DEFAULT 'normal',
   status TEXT NOT NULL DEFAULT 'open',
   metadata JSONB,
+  handled_by_user_id TEXT,
+  handled_by_name TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -52,6 +54,31 @@ CREATE TABLE IF NOT EXISTS report_comments (
 CREATE INDEX IF NOT EXISTS reports_user_id_idx ON reports(user_id);
 CREATE INDEX IF NOT EXISTS reports_status_idx ON reports(status);
 CREATE INDEX IF NOT EXISTS report_comments_report_id_idx ON report_comments(report_id);
+
+CREATE TABLE IF NOT EXISTS reporting_profiles (
+  user_id TEXT PRIMARY KEY,
+  report_ban_type TEXT NOT NULL DEFAULT 'none',
+  banned_until TIMESTAMPTZ,
+  limit_hourly INTEGER NOT NULL DEFAULT 0,
+  limit_daily INTEGER NOT NULL DEFAULT 0,
+  strikes INTEGER NOT NULL DEFAULT 0,
+  last_strike_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS report_strikes (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  report_id BIGINT REFERENCES reports(id) ON DELETE SET NULL,
+  reason TEXT,
+  strike_type TEXT NOT NULL,
+  points INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS reporting_profiles_user_id_idx ON reporting_profiles(user_id);
+CREATE INDEX IF NOT EXISTS report_strikes_user_id_idx ON report_strikes(user_id);
 
 INSERT INTO redirects (slug, url, description)
 VALUES
