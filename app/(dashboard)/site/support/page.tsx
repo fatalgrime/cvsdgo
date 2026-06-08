@@ -43,6 +43,10 @@ export default function SupportPage() {
     return map;
   }, [comments]);
 
+  const visibleReports = useMemo(() => {
+    return isStaff ? reports.filter((report) => report.status !== "deleted") : reports;
+  }, [isStaff, reports]);
+
   const loadReports = useCallback(async () => {
     if (!isSignedIn) {
       setIsLoading(false);
@@ -223,11 +227,11 @@ export default function SupportPage() {
 
             {isLoading ? (
               <p className="mt-4 text-sm text-slate-600">Loading reports...</p>
-            ) : reports.length === 0 ? (
+            ) : visibleReports.length === 0 ? (
               <p className="mt-4 text-sm text-slate-600">No reports yet.</p>
             ) : (
               <div className="mt-4 space-y-4">
-                {reports.map((report) => {
+                {visibleReports.map((report) => {
                   const reportComments = commentMap.get(report.id) ?? [];
                   return (
                     <div key={report.id} className="rounded-md border border-slate-200 p-4">
@@ -409,11 +413,15 @@ export default function SupportPage() {
       <AnimatePresence>
         {pendingDelete && (
           <motion.div
-            className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 backdrop-blur-none px-4"
-            style={{ backdropFilter: "none" }}
+            className="fixed inset-0 z-[120] flex min-h-screen items-center justify-center bg-slate-950/70 backdrop-blur-2xl p-4 overflow-auto"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                setPendingDelete(null);
+              }
+            }}
           >
             <motion.div
               className="w-full max-w-md rounded-md border border-slate-200 bg-white p-6 shadow-xl"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { useToast } from "@/components/toast-provider";
 import type { ReportCommentRow, ReportRow } from "@/lib/types";
@@ -387,30 +388,40 @@ export default function UsersPage() {
           )}
         </div>
 
-        {selectedUser && (
-          <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-fade-in"
-            onClick={handleBackdropClick}
-          >
-            <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200 animate-scale-in">
-              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-oxford-800">Report history for {selectedUser.name}</h2>
-                  <p className="mt-1 text-sm text-slate-600">Manage report bans, hourly/daily limits, and strike history.</p>
+        <AnimatePresence>
+          {selectedUser && (
+            <motion.div
+              className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-slate-950/70 backdrop-blur-2xl p-4 overflow-auto"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleBackdropClick}
+            >
+              <motion.div
+                className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200"
+                initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 24, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                  <div>
+                    <h2 className="text-lg font-serif font-semibold text-oxford-800">Report history for {selectedUser.name}</h2>
+                    <p className="mt-1 text-sm text-slate-600">Manage report bans, hourly/daily limits, and strike history.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeReportModal}
+                    className="rounded-full border border-slate-300 bg-white p-2 text-slate-600 transition hover:border-slate-400 hover:text-oxford-700 hover:bg-slate-50 active:scale-95"
+                    aria-label="Close modal"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={closeReportModal}
-                  className="rounded-full border border-slate-300 bg-white p-2 text-slate-600 transition hover:border-slate-400 hover:text-oxford-700 hover:bg-slate-50 active:scale-95"
-                  aria-label="Close modal"
-                >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
 
-              <div className="space-y-6 p-5">
+                <div className="space-y-6 p-5">
                 <div className="grid gap-4 lg:grid-cols-[1fr,360px]">
                   <div className="space-y-4">
                     <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
@@ -552,8 +563,9 @@ export default function UsersPage() {
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
+      </AnimatePresence>
       </SignedIn>
     </section>
   );

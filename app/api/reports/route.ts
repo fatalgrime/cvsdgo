@@ -45,7 +45,7 @@ export async function GET(): Promise<Response> {
   const reports = (await sql`
     SELECT id, user_id, user_email, title, description, link_slug, priority, status, metadata, handled_by_user_id, handled_by_name, created_at, updated_at
     FROM reports
-    WHERE ${isStaff} OR user_id = ${userId}
+    WHERE status != 'deleted' AND (${isStaff} OR user_id = ${userId})
     ORDER BY created_at DESC;
   `) as ReportRow[];
 
