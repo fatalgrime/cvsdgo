@@ -3,6 +3,7 @@ import type { User } from "@clerk/backend";
 
 const ALLOWED_DISCORD_ID = "1012507248305647718";
 const ALLOWED_USERNAMES = ["admin"];
+export const WEBHOOK_EDIT_USER_ID = "user_3AhQ5Y8oIecKRmPgo7mEtNduoaW";
 
 type CVSDGoMetadata = {
   admin?: boolean;
@@ -91,6 +92,10 @@ export async function getAccessProfile(userId: string | null): Promise<AccessPro
 export async function isAllowedUser(userId: string | null): Promise<boolean> {
   const profile = await getAccessProfile(userId);
   return profile.canManageLinks;
+}
+
+export function canEditDiscordWebhook(userId: string | null): boolean {
+  return userId === WEBHOOK_EDIT_USER_ID;
 }
 
 export async function isReportStaffUser(userId: string | null): Promise<boolean> {

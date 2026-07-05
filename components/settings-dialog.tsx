@@ -19,6 +19,7 @@ type AuditLogEntry = {
 type SettingsResponse = {
   settings: Record<string, string>;
   auditLogs: AuditLogEntry[];
+  canEditWebhook: boolean;
 };
 
 export function SettingsDialog() {
@@ -28,6 +29,7 @@ export function SettingsDialog() {
   const [search, setSearch] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [canEditWebhook, setCanEditWebhook] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
   const { toast } = useToast();
 
@@ -53,6 +55,7 @@ export function SettingsDialog() {
         if (!isActive) return;
         setWebhookUrl(data.settings.discord_webhook_url ?? "");
         setAuditLogs(data.auditLogs ?? []);
+        setCanEditWebhook(Boolean(data.canEditWebhook));
       } catch (error) {
         const message = (error as Error).message || "Unable to load settings.";
         if (!isActive) return;
@@ -151,9 +154,11 @@ export function SettingsDialog() {
                     <button
                       type="button"
                       onClick={() => setIsOpen(false)}
-                      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-oxford-700 transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-xl font-semibold text-oxford-700 transition hover:border-oxford-400 hover:text-oxford-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300"
+                      aria-label="Close settings"
+                      title="Close settings"
                     >
-                      Close
+                      ×
                     </button>
                   </div>
 
@@ -174,21 +179,27 @@ export function SettingsDialog() {
                             value={webhookUrl}
                             onChange={(event) => setWebhookUrl(event.target.value)}
                             placeholder="https://discord.com/api/webhooks/..."
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                            readOnly={!canEditWebhook}
+                            disabled={!canEditWebhook}
+                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-900"
                           />
                         </div>
-                        <button
-                          type="submit"
-                          disabled={isSaving}
-                          className="inline-flex items-center gap-2 rounded-md border border-oxford-700 bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
-                        >
-                          {isSaving && (
-                            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21 12a9 9 0 1 1-3.3-6.9" />
-                            </svg>
-                          )}
-                          Save webhook
-                        </button>
+                        {canEditWebhook ? (
+                          <button
+                            type="submit"
+                            disabled={isSaving}
+                            className="inline-flex items-center gap-2 rounded-md border border-oxford-700 bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
+                          >
+                            {isSaving && (
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 12a9 9 0 1 1-3.3-6.9" />
+                              </svg>
+                            )}
+                            Save webhook
+                          </button>
+                        ) : (
+                          <p className="text-sm text-slate-600 dark:text-slate-400">Only drevmourn can update this webhook URL.</p>
+                        )}
                       </form>
                     </div>
 

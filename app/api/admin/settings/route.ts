@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureAuditSchema } from "@/lib/audit";
-import { isAllowedUser } from "@/lib/access";
+import { canEditDiscordWebhook, isAllowedUser } from "@/lib/access";
 
 export async function GET(): Promise<Response> {
   const { userId } = await auth();
@@ -38,7 +38,7 @@ export async function GET(): Promise<Response> {
     created_at: string;
   }>;
 
-  return Response.json({ settings, auditLogs: logs });
+  return Response.json({ settings, auditLogs: logs, canEditWebhook: canEditDiscordWebhook(userId) });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -58,6 +58,10 @@ export async function POST(request: Request): Promise<Response> {
   const settingValue = String(body.settingValue ?? "").trim();
 
   if (!settingKey) return new Response("Invalid setting", { status: 400 });
+
+  if (settingKey === "discord_webhook_url" && !canEditDiscordWebhook(userId)) {
+    return new Response("Only drevmourn can edit the Discord webhook URL.", { status: 403 });
+  }
 
   const sql = getSql();
   await sql`
