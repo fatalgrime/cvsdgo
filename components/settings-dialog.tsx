@@ -20,6 +20,12 @@ type SettingsResponse = {
   settings: Record<string, string>;
   auditLogs: AuditLogEntry[];
   canEditWebhook: boolean;
+  health: {
+    databaseConfigured: boolean;
+    webhookConfigured: boolean;
+    auditLogEntries: number;
+    latestActivityAt: string | null;
+  };
 };
 
 export function SettingsDialog() {
@@ -31,6 +37,8 @@ export function SettingsDialog() {
   const [isLoading, setIsLoading] = useState(false);
   const [canEditWebhook, setCanEditWebhook] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
+  const [health, setHealth] = useState<SettingsResponse["health"] | null>(null);
+  const [isReverting, setIsReverting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -56,6 +64,7 @@ export function SettingsDialog() {
         setWebhookUrl(data.settings.discord_webhook_url ?? "");
         setAuditLogs(data.auditLogs ?? []);
         setCanEditWebhook(Boolean(data.canEditWebhook));
+        setHealth(data.health ?? null);
       } catch (error) {
         const message = (error as Error).message || "Unable to load settings.";
         if (!isActive) return;
@@ -108,6 +117,47 @@ export function SettingsDialog() {
       toast({ title: "Unable to save settings", description: message, variant: "error" });
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleRevert() {
+    setIsReverting(true);
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "revert", settingKey: "discord_webhook_url" }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      toast({ title: "Webhook reverted", description: "The previous webhook value has been restored.", variant: "success" });
+      setWebhookUrl("");
+      void loadSettings();
+    } catch (error) {
+      const message = (error as Error).message || "Unable to revert settings.";
+      toast({ title: "Unable to revert settings", description: message, variant: "error" });
+    } finally {
+      setIsReverting(false);
+    }
+  }
+
+  async function loadSettings() {
+    try {
+      const response = await fetch("/api/admin/settings");
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const data = (await response.json()) as SettingsResponse;
+      setWebhookUrl(data.settings.discord_webhook_url ?? "");
+      setAuditLogs(data.auditLogs ?? []);
+      setCanEditWebhook(Boolean(data.canEditWebhook));
+      setHealth(data.health ?? null);
+    } catch (error) {
+      const message = (error as Error).message || "Unable to load settings.";
+      toast({ title: "Unable to load settings", description: message, variant: "error" });
     }
   }
 
@@ -184,30 +234,61 @@ export function SettingsDialog() {
                             className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-900"
                           />
                         </div>
-                        {canEditWebhook ? (
-                          <button
-                            type="submit"
-                            disabled={isSaving}
-                            className="inline-flex items-center gap-2 rounded-md border border-oxford-700 bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
-                          >
-                            {isSaving && (
-                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 12a9 9 0 1 1-3.3-6.9" />
-                              </svg>
-                            )}
-                            Save webhook
-                          </button>
-                        ) : (
-                          <p className="text-sm text-slate-600 dark:text-slate-400">Only drevmourn can update this webhook URL.</p>
-                        )}
+                        <div className="flex flex-wrap items-center gap-3">
+                          {canEditWebhook ? (
+                            <button
+                              type="submit"
+                              disabled={isSaving}
+                              className="inline-flex items-center gap-2 rounded-md border border-oxford-700 bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
+                            >
+                              {isSaving && (
+                                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 12a9 9 0 1 1-3.3-6.9" />
+                                </svg>
+                              )}
+                              Save webhook
+                            </button>
+                          ) : (
+                            <p className="text-sm text-slate-600 dark:text-slate-400">Only drevmourn can update this webhook URL.</p>
+                          )}
+                          {canEditWebhook && (
+                            <button
+                              type="button"
+                              onClick={handleRevert}
+                              disabled={isReverting}
+                              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isReverting ? "Reverting…" : "Revert"}
+                            </button>
+                          )}
+                        </div>
                       </form>
                     </div>
 
                     <div className="rounded-md border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/60">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-600 dark:text-slate-400">Audit log</h3>
+                          <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-600 dark:text-slate-400">Action history</h3>
                           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Recent admin and staff activity.</p>
+                        </div>
+                        {health && (
+                          <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700">
+                            {health.databaseConfigured ? "Healthy" : "Setup needed"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Entries</p>
+                          <p className="mt-2 text-lg font-semibold text-oxford-700">{health?.auditLogEntries ?? 0}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Webhook</p>
+                          <p className="mt-2 text-lg font-semibold text-oxford-700">{health?.webhookConfigured ? "Live" : "Offline"}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Latest</p>
+                          <p className="mt-2 text-sm font-semibold text-oxford-700">{health?.latestActivityAt ? new Date(health.latestActivityAt).toLocaleString() : "No activity yet"}</p>
                         </div>
                       </div>
                       <input

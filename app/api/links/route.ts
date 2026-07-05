@@ -5,7 +5,7 @@ import { normalizeSlug } from "@/lib/normalize";
 import { hashPassword } from "@/lib/password";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
-import { logAuditEvent } from "@/lib/audit";
+import { getRequestContext, logAuditEvent } from "@/lib/audit";
 
 type RedirectRow = {
   id: number;
@@ -100,6 +100,7 @@ export async function POST(request: Request): Promise<Response> {
 
   await ensureLinkSchema();
   const body = await request.json();
+  const context = getRequestContext(request);
   const slug = normalizeSlug(String(body.slug ?? ""));
   const description = String(body.description ?? "").trim() || null;
   const isLocked = Boolean(body.isLocked);
@@ -145,6 +146,10 @@ export async function POST(request: Request): Promise<Response> {
       action: "Link created",
       details: `${slug} → ${url}${isLocked ? " (locked)" : ""}`,
       actorUserId: (await auth()).userId ?? null,
+      category: "links",
+      source: "link-manager",
+      actorIpAddress: context.actorIpAddress,
+      actorUserAgent: context.actorUserAgent,
     });
     revalidateTag("redirects");
     return Response.json({ link: rows[0] }, { status: 201 });

@@ -18,6 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (isStaff) {
     sidebarItems.push({ href: "/site/link-manager", label: "Link Manager" });
     sidebarItems.push({ href: "/site/users", label: "Users" });
+    sidebarItems.push({ href: "/site/status", label: "Status" });
   }
 
   return (

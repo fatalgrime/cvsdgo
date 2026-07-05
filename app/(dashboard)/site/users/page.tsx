@@ -250,11 +250,11 @@ export default function UsersPage() {
 
   return (
     <section className="space-y-6">
-      <div className="panel-strong p-6">
+      <div className="panel-strong p-6 md:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Users</p>
         <h1 className="mt-3 font-serif text-3xl leading-tight text-oxford-700 md:text-4xl">User Management</h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600 md:text-base">
-          Manage users, access roles, and report moderation settings.
+          Manage users, access roles, and report moderation settings from one polished workspace.
         </p>
       </div>
 
@@ -275,13 +275,19 @@ export default function UsersPage() {
 
       <SignedIn>
         <div className="panel p-4 md:p-5">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search users by name, username, or email..."
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-oxford-700 outline-none transition placeholder:text-slate-500 focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
-            aria-label="Search users"
-          />
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 md:flex-row md:items-center md:justify-between md:p-4">
+            <div>
+              <p className="text-sm font-semibold text-oxford-700">Search directory</p>
+              <p className="mt-1 text-sm text-slate-600">Find accounts quickly by name, username, or email.</p>
+            </div>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search users by name, username, or email..."
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-oxford-700 outline-none transition placeholder:text-slate-500 focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)] md:max-w-md"
+              aria-label="Search users"
+            />
+          </div>
         </div>
 
         {statusMessage && (
@@ -301,12 +307,18 @@ export default function UsersPage() {
               const accountStatus = user.locked ? "Locked" : "Active";
               const reportBadge = activeReportBadge(user);
               return (
-                <article key={user.id} className="panel p-4 md:p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-oxford-700">{user.name}</p>
+                <motion.article
+                  key={user.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="panel p-4 md:p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-5">
+                    <div className="min-w-[220px] flex-1">
+                      <p className="text-base font-semibold text-oxford-700">{user.name}</p>
                       <p className="mt-1 text-sm text-slate-600">{user.email ?? "No email"}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em]">
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em]">
                         <span className="rounded-full border border-slate-300 bg-slate-50 px-2 py-1 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                           {accountStatus}
                         </span>
@@ -333,33 +345,35 @@ export default function UsersPage() {
                       </div>
                     </div>
 
-                    <div className="grid w-full gap-3 md:w-auto md:min-w-[320px]">
-                      <label className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-                        <span>Admin Features</span>
-                        <input
-                          type="checkbox"
-                          checked={user.metadataAdmin}
-                          disabled={isBusy || user.allowlisted}
-                          onChange={(event) => updateRoles(user, { admin: event.target.checked })}
-                          className="h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
-                        />
-                      </label>
-                      <label className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-                        <span>Reports Staff</span>
-                        <input
-                          type="checkbox"
-                          checked={user.metadataReportStaff}
-                          disabled={isBusy}
-                          onChange={(event) => updateRoles(user, { reportStaff: event.target.checked })}
-                          className="h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
-                        />
-                      </label>
+                    <div className="grid w-full gap-3 md:w-auto md:min-w-[340px]">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                          <span>Admin Features</span>
+                          <input
+                            type="checkbox"
+                            checked={user.metadataAdmin}
+                            disabled={isBusy || user.allowlisted}
+                            onChange={(event) => updateRoles(user, { admin: event.target.checked })}
+                            className="h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
+                          />
+                        </label>
+                        <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                          <span>Reports Staff</span>
+                          <input
+                            type="checkbox"
+                            checked={user.metadataReportStaff}
+                            disabled={isBusy}
+                            onChange={(event) => updateRoles(user, { reportStaff: event.target.checked })}
+                            className="h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
+                          />
+                        </label>
+                      </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           disabled={isBusy}
                           onClick={() => performAction(user, user.locked ? "unlock" : "lock")}
-                          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-oxford-700 transition hover:border-oxford-400 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-oxford-700 transition hover:border-oxford-400 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {user.locked ? "Unlock Account" : "Lock Account"}
                         </button>
@@ -367,7 +381,7 @@ export default function UsersPage() {
                           type="button"
                           disabled={isBusy}
                           onClick={() => performAction(user, "force_password_reset")}
-                          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-amber-700 transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-amber-700 transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Require Password Reset
                         </button>
@@ -375,14 +389,14 @@ export default function UsersPage() {
                           type="button"
                           disabled={isBusy}
                           onClick={() => loadReportHistory(user)}
-                          className="rounded-md border border-deepforest-200 bg-deepforest-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-deepforest-700 transition hover:border-deepforest-400 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-xl border border-deepforest-200 bg-deepforest-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-deepforest-700 transition hover:border-deepforest-400 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           View Report History
                         </button>
                       </div>
                     </div>
                   </div>
-                </article>
+                </motion.article>
               );
             })
           )}

@@ -2,6 +2,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getCVSDGoRoleMetadata, isAllowedUser } from "@/lib/access";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureReportSchema } from "@/lib/report-schema";
+import { getRequestContext, logAuditEvent } from "@/lib/audit";
 
 type RoleUpdateBody = {
   admin?: unknown;
@@ -200,6 +201,7 @@ export async function PATCH(
   const { id } = await params;
   const client = await clerkClient();
   const target = await client.users.getUser(id);
+  const context = getRequestContext(request);
 
   let updated = target;
   const roleUpdate = {} as { admin?: boolean; reportStaff?: boolean };
@@ -230,6 +232,22 @@ export async function PATCH(
         ...privateMetadata,
         cvsdGo: nextCVSDGo,
       },
+    });
+
+    await logAuditEvent({
+      action: roleUpdate.admin !== undefined ? (roleUpdate.admin ? "Admin role granted" : "Admin role revoked") : "Report staff role updated",
+      details: `${target.username || target.firstName || target.id} role update applied`,
+      actorUserId: userId,
+      metadata: {
+        targetUserId: id,
+        admin: roleUpdate.admin,
+        reportStaff: roleUpdate.reportStaff,
+      },
+      severity: "warning",
+      category: "user-management",
+      source: "admin-users",
+      actorIpAddress: context.actorIpAddress,
+      actorUserAgent: context.actorUserAgent,
     });
   }
 
@@ -349,6 +367,7 @@ export async function POST(
 
   const { id } = await params;
   const client = await clerkClient();
+  const context = getRequestContext(request);
 
   if (id === userId && action === "lock") {
     return new Response("You cannot lock your own account", { status: 400 });
@@ -356,14 +375,46 @@ export async function POST(
 
   if (action === "lock") {
     await client.users.lockUser(id);
+    await logAuditEvent({
+      action: "User locked",
+      details: `Account ${id} locked by admin`,
+      actorUserId: userId,
+      metadata: { targetUserId: id },
+      severity: "warning",
+      category: "user-management",
+      source: "admin-users",
+      actorIpAddress: context.actorIpAddress,
+      actorUserAgent: context.actorUserAgent,
+    });
     return Response.json({ ok: true });
   }
   if (action === "unlock") {
     await client.users.unlockUser(id);
+    await logAuditEvent({
+      action: "User unlocked",
+      details: `Account ${id} unlocked by admin`,
+      actorUserId: userId,
+      metadata: { targetUserId: id },
+      category: "user-management",
+      source: "admin-users",
+      actorIpAddress: context.actorIpAddress,
+      actorUserAgent: context.actorUserAgent,
+    });
     return Response.json({ ok: true });
   }
   if (action === "force_password_reset") {
     await client.users.setPasswordCompromised(id, { revokeAllSessions: true });
+    await logAuditEvent({
+      action: "Password reset required",
+      details: `Password reset enforced for ${id}`,
+      actorUserId: userId,
+      metadata: { targetUserId: id },
+      severity: "warning",
+      category: "user-management",
+      source: "admin-users",
+      actorIpAddress: context.actorIpAddress,
+      actorUserAgent: context.actorUserAgent,
+    });
     return Response.json({ ok: true });
   }
 

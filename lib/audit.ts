@@ -14,7 +14,15 @@ type AuditEventInput = {
   actorUsername?: string | null;
   actorHasDiscordAccount?: boolean;
   actorHasLoginAccount?: boolean;
+  metadata?: Record<string, unknown> | null;
+  severity?: "info" | "warning" | "critical";
+  category?: string | null;
+  source?: string | null;
+  actorIpAddress?: string | null;
+  actorUserAgent?: string | null;
 };
+
+const suspiciousActivityBuckets = new Map<string, number[]>();
 
 async function getActorInfo(userId?: string | null): Promise<ActorInfo> {
   if (!userId) {
@@ -45,6 +53,60 @@ async function getActorInfo(userId?: string | null): Promise<ActorInfo> {
       hasLoginAccount: false,
     };
   }
+}
+
+function normalizeSeverity(severity?: AuditEventInput["severity"]): "info" | "warning" | "critical" {
+  return severity === "critical" ? "critical" : severity === "warning" ? "warning" : "info";
+}
+
+function shouldNotifyDiscord(input: AuditEventInput, details: string): boolean {
+  const normalizedAction = input.action.toLowerCase();
+  const normalizedDetails = details.toLowerCase();
+  return (
+    normalizeSeverity(input.severity) === "critical" ||
+    normalizedAction.includes("delete") ||
+    normalizedAction.includes("lock") ||
+    normalizedAction.includes("ban") ||
+    normalizedAction.includes("revoke") ||
+    normalizedAction.includes("suspicious") ||
+    normalizedDetails.includes("mass") ||
+    normalizedDetails.includes("bulk") ||
+    normalizedDetails.includes("multiple")
+  );
+}
+
+function detectSuspiciousActivity(input: AuditEventInput): "info" | "warning" | "critical" {
+  if (input.severity === "critical") {
+    return "critical";
+  }
+
+  const bucketKey = `${input.actorUserId ?? "anonymous"}:${input.action.toLowerCase()}`;
+  const now = Date.now();
+  const timestamps = suspiciousActivityBuckets.get(bucketKey) ?? [];
+  const recent = timestamps.filter((stamp) => now - stamp < 60_000);
+  recent.push(now);
+  suspiciousActivityBuckets.set(bucketKey, recent);
+
+  if (recent.length >= 3) {
+    return "critical";
+  }
+
+  return normalizeSeverity(input.severity);
+}
+
+export function getRequestContext(request?: Request | null): { actorIpAddress: string | null; actorUserAgent: string | null } {
+  if (!request) {
+    return { actorIpAddress: null, actorUserAgent: null };
+  }
+
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const realIp = request.headers.get("x-real-ip")?.trim() ?? null;
+  const userAgent = request.headers.get("user-agent")?.trim() ?? null;
+
+  return {
+    actorIpAddress: forwarded ?? realIp,
+    actorUserAgent: userAgent,
+  };
 }
 
 async function getDiscordWebhookUrl(): Promise<string | null> {
@@ -82,12 +144,32 @@ export async function ensureAuditSchema(): Promise<void> {
       actor_username TEXT,
       actor_has_discord_account BOOLEAN NOT NULL DEFAULT FALSE,
       actor_has_login_account BOOLEAN NOT NULL DEFAULT FALSE,
+      actor_ip_address TEXT,
+      actor_user_agent TEXT,
+      metadata JSONB,
+      severity TEXT NOT NULL DEFAULT 'info',
+      category TEXT,
+      source TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `;
 
   await sql`
+    ALTER TABLE audit_logs
+    ADD COLUMN IF NOT EXISTS actor_ip_address TEXT,
+    ADD COLUMN IF NOT EXISTS actor_user_agent TEXT,
+    ADD COLUMN IF NOT EXISTS metadata JSONB,
+    ADD COLUMN IF NOT EXISTS severity TEXT DEFAULT 'info',
+    ADD COLUMN IF NOT EXISTS category TEXT,
+    ADD COLUMN IF NOT EXISTS source TEXT;
+  `;
+
+  await sql`
     CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs(created_at DESC);
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS audit_logs_severity_idx ON audit_logs(severity);
   `;
 }
 
@@ -99,6 +181,9 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
   const actor = await getActorInfo(input.actorUserId);
   const username = input.actorUsername ?? actor.username;
   const webhookUrl = await getDiscordWebhookUrl();
+  const severity = detectSuspiciousActivity(input);
+  const details = input.details ?? "No additional details were provided.";
+  const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
   const sql = getSql();
 
   await sql`
@@ -108,36 +193,52 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
       actor_user_id,
       actor_username,
       actor_has_discord_account,
-      actor_has_login_account
+      actor_has_login_account,
+      actor_ip_address,
+      actor_user_agent,
+      metadata,
+      severity,
+      category,
+      source
     )
     VALUES (
       ${input.action},
-      ${input.details ?? null},
+      ${details},
       ${input.actorUserId ?? null},
       ${username ?? null},
       ${input.actorHasDiscordAccount ?? actor.hasDiscordAccount},
-      ${input.actorHasLoginAccount ?? actor.hasLoginAccount}
+      ${input.actorHasLoginAccount ?? actor.hasLoginAccount},
+      ${input.actorIpAddress ?? null},
+      ${input.actorUserAgent ?? null},
+      ${metadataJson},
+      ${severity},
+      ${input.category ?? null},
+      ${input.source ?? null}
     );
   `;
 
   if (!webhookUrl) return;
+
+  const notifyDiscord = shouldNotifyDiscord(input, details);
 
   try {
     await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(notifyDiscord ? { content: "@everyone" } : {}),
         embeds: [
           {
             title: `Audit: ${input.action}`,
-            color: 0x1d4ed8,
-            description: input.details || "No additional details were provided.",
+            color: notifyDiscord ? 0xef4444 : 0x1d4ed8,
+            description: details,
             fields: [
               { name: "User", value: username || "Unknown user", inline: true },
               { name: "Linked to Discord", value: input.actorHasDiscordAccount ?? actor.hasDiscordAccount ? "Yes" : "No", inline: true },
               { name: "Has login account", value: input.actorHasLoginAccount ?? actor.hasLoginAccount ? "Yes" : "No", inline: true },
+              { name: "Severity", value: severity, inline: true },
               { name: "Action", value: input.action, inline: false },
-              { name: "Details", value: input.details || "No additional details were provided.", inline: false },
+              { name: "Details", value: details, inline: false },
             ],
             timestamp: new Date().toISOString(),
           },

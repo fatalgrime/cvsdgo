@@ -2,7 +2,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureReportSchema } from "@/lib/report-schema";
 import { isReportStaffUser } from "@/lib/access";
-import { logAuditEvent } from "@/lib/audit";
+import { getRequestContext, logAuditEvent } from "@/lib/audit";
 
 type ReportStatusRow = {
   id: number;
@@ -54,6 +54,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
+  const context = getRequestContext(request);
   const status = parseStatus(body.status);
 
   if (!status) {
@@ -81,6 +82,11 @@ export async function PUT(
     action: `Report ${status}`,
     details: `Report #${id} changed to ${status}`,
     actorUserId: userId,
+    severity: status === "rejected" || status === "deleted" ? "warning" : "info",
+    category: "reports",
+    source: "reporting",
+    actorIpAddress: context.actorIpAddress,
+    actorUserAgent: context.actorUserAgent,
   });
 
   if (status === "rejected") {
@@ -142,6 +148,7 @@ export async function DELETE(
 
   const isStaff = await isReportStaffUser(userId);
   const { id } = await params;
+  const context = getRequestContext(_request);
   const sql = getSql();
 
   if (isStaff) {
@@ -164,6 +171,11 @@ export async function DELETE(
       action: "Report deleted",
       details: `Report #${id} deleted`,
       actorUserId: userId,
+      severity: "warning",
+      category: "reports",
+      source: "reporting",
+      actorIpAddress: context.actorIpAddress,
+      actorUserAgent: context.actorUserAgent,
     });
     return Response.json({ ok: true });
   }
