@@ -248,6 +248,20 @@ export default function UsersPage() {
     return null;
   };
 
+  const currentReportStatus =
+    selectedProfile.reportBanType === "permanent"
+      ? "Permanently banned"
+      : selectedProfile.reportBanType === "temporary"
+      ? "Temporary restriction"
+      : "Normal reporting access";
+
+  const currentReportCaption =
+    selectedProfile.reportBanType === "permanent"
+      ? "Reporting is disabled for this account."
+      : selectedProfile.reportBanType === "temporary" && selectedProfile.reportBannedUntil
+      ? `Active until ${new Date(selectedProfile.reportBannedUntil).toLocaleString()}`
+      : "This user can still submit reports.";
+
   return (
     <section className="space-y-6">
       <div className="panel-strong p-6 md:p-8">
@@ -412,21 +426,21 @@ export default function UsersPage() {
               onClick={handleBackdropClick}
             >
               <motion.div
-                className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200"
+                className="w-full max-w-4xl max-h-[calc(100vh-2rem)] overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200"
                 initial={{ opacity: 0, y: 24, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 24, scale: 0.98 }}
                 transition={{ duration: 0.2 }}
               >
-                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-5">
                   <div>
                     <h2 className="text-lg font-serif font-semibold text-oxford-800">Report history for {selectedUser.name}</h2>
-                    <p className="mt-1 text-sm text-slate-600">Manage report bans, hourly/daily limits, and strike history.</p>
+                    <p className="mt-1 text-sm text-slate-600">Review user reports and adjust moderation controls without the extra visual weight.</p>
                   </div>
                   <button
                     type="button"
                     onClick={closeReportModal}
-                    className="rounded-full border border-slate-300 bg-white p-2 text-slate-600 transition hover:border-slate-400 hover:text-oxford-700 hover:bg-slate-50 active:scale-95"
+                    className="rounded-full border border-slate-300 bg-white p-2 text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 hover:text-oxford-700 active:scale-95"
                     aria-label="Close modal"
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -435,62 +449,86 @@ export default function UsersPage() {
                   </button>
                 </div>
 
-                <div className="space-y-6 p-5">
-                <div className="grid gap-4 lg:grid-cols-[1fr,360px]">
-                  <div className="space-y-4">
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Report profile</p>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current ban</p>
-                          <p className="mt-2 text-sm text-slate-700">{selectedProfile.reportBanType}</p>
-                          {selectedProfile.reportBannedUntil && (
-                            <p className="mt-1 text-sm text-slate-500">Until {new Date(selectedProfile.reportBannedUntil).toLocaleString()}</p>
-                          )}
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Report limits</p>
-                          <p className="mt-2 text-sm text-slate-700">Hourly: {selectedProfile.reportLimitHourly || "none"}</p>
-                          <p className="mt-1 text-sm text-slate-700">Daily: {selectedProfile.reportLimitDaily || "none"}</p>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Strikes</p>
-                          <p className="mt-2 text-sm text-slate-700">{selectedProfile.reportStrikes}</p>
-                          {selectedProfile.reportLastStrikeAt && (
-                            <p className="mt-1 text-sm text-slate-500">Last strike {new Date(selectedProfile.reportLastStrikeAt).toLocaleString()}</p>
-                          )}
-                        </div>
+                <div className="max-h-[calc(100vh-2rem-73px)] space-y-4 overflow-y-auto p-4 sm:p-5">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">Profile snapshot</p>
+                        <p className="mt-1 text-sm text-slate-600">A compact view of the current moderation state and recent activity.</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.08em]">
+                        <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-slate-600">{currentReportStatus}</span>
+                        <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-slate-600">{selectedProfile.reportStrikes} strike{selectedProfile.reportStrikes === 1 ? "" : "s"}</span>
                       </div>
                     </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Current status</p>
+                        <p className="mt-2 text-sm font-semibold text-slate-700">{currentReportStatus}</p>
+                        <p className="mt-1 text-sm text-slate-500">{currentReportCaption}</p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Limits</p>
+                        <p className="mt-2 text-sm text-slate-700">Hourly: {selectedProfile.reportLimitHourly || "none"}</p>
+                        <p className="mt-1 text-sm text-slate-700">Daily: {selectedProfile.reportLimitDaily || "none"}</p>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Last activity</p>
+                        <p className="mt-2 text-sm text-slate-700">{selectedProfile.reportLastStrikeAt ? new Date(selectedProfile.reportLastStrikeAt).toLocaleString() : "No recent strike"}</p>
+                        <p className="mt-1 text-sm text-slate-500">Updated from the latest moderation action.</p>
+                      </div>
+                    </div>
+                  </div>
 
-                    <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                      <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Moderation settings</p>
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Moderation settings</p>
+                          <p className="mt-1 text-sm text-slate-600">Adjust report access and limits in a clearer, guided flow.</p>
+                        </div>
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
+                          Guided
+                        </span>
+                      </div>
                       <div className="mt-4 space-y-4">
-                        <label className="block text-sm font-medium text-slate-700">Reporting ban</label>
-                        <select
-                          value={reportBanType}
-                          onChange={(event) => setReportBanType(event.target.value)}
-                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
-                        >
-                          <option value="none">None</option>
-                          <option value="temporary">Temporary</option>
-                          <option value="permanent">Permanent</option>
-                        </select>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="report-ban-type">
+                            Reporting ban
+                          </label>
+                          <select
+                            id="report-ban-type"
+                            value={reportBanType}
+                            onChange={(event) => setReportBanType(event.target.value)}
+                            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
+                          >
+                            <option value="none">No restriction</option>
+                            <option value="temporary">Temporary restriction</option>
+                            <option value="permanent">Permanent ban</option>
+                          </select>
+                          <p className="mt-2 text-sm text-slate-600">Choose whether the user can report right away, for a limited time, or never again.</p>
+                        </div>
                         {reportBanType === "temporary" && (
-                          <label className="block text-sm font-medium text-slate-700">
-                            Expiration
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="report-ban-until">
+                              Restriction expires
+                            </label>
                             <input
+                              id="report-ban-until"
                               type="datetime-local"
                               value={reportBannedUntil}
                               onChange={(event) => setReportBannedUntil(event.target.value)}
                               className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
                             />
-                          </label>
+                          </div>
                         )}
                         <div className="grid gap-3 sm:grid-cols-2">
-                          <label className="block text-sm font-medium text-slate-700">
-                            Hourly limit
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="hourly-limit">
+                              Hourly limit
+                            </label>
                             <input
+                              id="hourly-limit"
                               type="number"
                               min="0"
                               value={reportLimitHourly}
@@ -498,10 +536,13 @@ export default function UsersPage() {
                               placeholder="0"
                               className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
                             />
-                          </label>
-                          <label className="block text-sm font-medium text-slate-700">
-                            Daily limit
+                          </div>
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="daily-limit">
+                              Daily limit
+                            </label>
                             <input
+                              id="daily-limit"
                               type="number"
                               min="0"
                               value={reportLimitDaily}
@@ -509,74 +550,87 @@ export default function UsersPage() {
                               placeholder="0"
                               className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)]"
                             />
-                          </label>
+                          </div>
                         </div>
-                        <label className="flex items-center gap-3 text-sm text-slate-700">
+                        <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                           <input
                             type="checkbox"
                             checked={resetStrikes}
                             onChange={(event) => setResetStrikes(event.target.checked)}
-                            className="h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
+                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
                           />
-                          Reset strike count
+                          <span>
+                            <span className="font-semibold text-slate-800">Reset strike count</span>
+                            <span className="mt-1 block text-xs text-slate-500">Clear prior strikes so future moderation decisions start fresh.</span>
+                          </span>
                         </label>
-                        <button
-                          type="button"
-                          disabled={savingReportSettings}
-                          onClick={saveReportingSettings}
-                          className="rounded-2xl bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Save report settings
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={savingReportSettings}
+                            onClick={saveReportingSettings}
+                            className="rounded-2xl bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Save report settings
+                          </button>
+                          <span className="text-xs uppercase tracking-[0.12em] text-slate-500">Changes apply immediately.</span>
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Recent reports</p>
+                          <p className="mt-1 text-sm text-slate-600">A concise history of submitted reports for this user.</p>
+                        </div>
+                        <span className="rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
+                          {reportHistory.length} item{reportHistory.length === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      {reportLoading ? (
+                        <p className="mt-4 text-sm text-slate-600">Loading report history…</p>
+                      ) : reportError ? (
+                        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{reportError}</p>
+                      ) : reportHistory.length === 0 ? (
+                        <p className="mt-4 text-sm text-slate-600">No reports submitted by this user.</p>
+                      ) : (
+                        <div className="mt-4 space-y-3">
+                          {reportHistory.map((report) => (
+                            <div key={report.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                              <div className="flex items-center justify-between gap-3 text-sm">
+                                <p className="font-semibold text-slate-800">{report.title}</p>
+                                <span className="rounded-full border border-slate-300 bg-white px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-600">
+                                  {report.status}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-sm text-slate-600">{report.description}</p>
+                              {report.handled_by_name && (
+                                <p className="mt-2 text-xs uppercase tracking-[0.12em] text-slate-500">Handled by {report.handled_by_name}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Recent reports</p>
-                    {reportLoading ? (
-                      <p className="mt-4 text-sm text-slate-600">Loading report history…</p>
-                    ) : reportError ? (
-                      <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{reportError}</p>
-                    ) : reportHistory.length === 0 ? (
-                      <p className="mt-4 text-sm text-slate-600">No reports submitted by this user.</p>
-                    ) : (
+                  {reportComments.length > 0 && (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Comments</p>
                       <div className="mt-4 space-y-3">
-                        {reportHistory.map((report) => (
-                          <div key={report.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="flex items-center justify-between gap-4 text-sm">
-                              <p className="font-semibold text-slate-800">{report.title}</p>
-                              <span className="rounded-full border border-slate-300 bg-white px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-600">
-                                {report.status}
-                              </span>
-                            </div>
-                            <p className="mt-2 text-sm text-slate-600">{report.description}</p>
-                            {report.handled_by_name && (
-                              <p className="mt-2 text-xs uppercase tracking-[0.12em] text-slate-500">Handled by {report.handled_by_name}</p>
-                            )}
+                        {reportComments.map((comment) => (
+                          <div key={comment.id} className="rounded-2xl border border-slate-200 bg-white p-3">
+                            <p className="text-sm font-semibold text-slate-800">Comment on report #{comment.report_id}</p>
+                            <p className="mt-2 text-sm text-slate-600">{comment.body}</p>
+                            <p className="mt-2 text-xs text-slate-500">By {comment.author_name ?? comment.author_user_id} · {new Date(comment.created_at).toLocaleString()}</p>
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {reportComments.length > 0 && (
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Comments</p>
-                    <div className="mt-4 space-y-3">
-                      {reportComments.map((comment) => (
-                        <div key={comment.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-sm font-semibold text-slate-800">Comment on report #{comment.report_id}</p>
-                          <p className="mt-2 text-sm text-slate-600">{comment.body}</p>
-                          <p className="mt-2 text-xs text-slate-500">By {comment.author_name ?? comment.author_user_id} · {new Date(comment.created_at).toLocaleString()}</p>
-                        </div>
-                      ))}
                     </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
+                  )}
+                </div>
+              </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

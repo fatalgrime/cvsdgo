@@ -639,7 +639,7 @@ export default function LinkManagerPage() {
                   value={form.url}
                   onChange={(event) => updateField("url", event.target.value)}
                   className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700"
-                  placeholder="https://www.cvsd.org"
+                  placeholder="https://www.cvsd.live"
                   required
                 />
               </div>
