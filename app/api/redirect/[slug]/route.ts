@@ -1,3 +1,5 @@
+import { auth } from "@clerk/nextjs/server";
+import { getAccessProfile } from "@/lib/access";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { normalizeSlug } from "@/lib/normalize";
 import { verifyPassword } from "@/lib/password";
@@ -9,6 +11,16 @@ type RedirectDestinationRow = {
   release_at: Date | null;
   expires_at: Date | null;
 };
+
+async function getCanOverrideForUser(): Promise<boolean> {
+  const { userId } = await auth();
+  if (!userId) {
+    return false;
+  }
+
+  const profile = await getAccessProfile(userId);
+  return profile.admin;
+}
 
 export async function GET(
   _request: Request,
@@ -41,8 +53,10 @@ export async function GET(
     return Response.json({ destinationUrl: null, inactive: true, reason: "expired" }, { status: 404 });
   }
 
+  const canOverride = await getCanOverrideForUser();
+
   if (rows[0].is_locked) {
-    return Response.json({ destinationUrl: null, locked: true });
+    return Response.json({ destinationUrl: null, locked: true, canOverride });
   }
 
   await sql`
@@ -66,6 +80,7 @@ export async function POST(
   const slug = normalizeSlug(rawSlug);
   const body = await request.json();
   const password = String(body.password ?? "");
+  const requestedOverride = body.override === true || body.override === "true";
 
   const sql = getSql();
   const rows = (await sql`
@@ -88,9 +103,16 @@ export async function POST(
     return Response.json({ destinationUrl: null, inactive: true, reason: "expired" }, { status: 404 });
   }
 
-  const isValid = verifyPassword(password, rows[0].password_hash);
-  if (!isValid) {
-    return new Response("Invalid password", { status: 401 });
+  const canOverride = await getCanOverrideForUser();
+  if (requestedOverride) {
+    if (!canOverride) {
+      return new Response("Forbidden", { status: 403 });
+    }
+  } else {
+    const isValid = verifyPassword(password, rows[0].password_hash);
+    if (!isValid) {
+      return new Response("Invalid password", { status: 401 });
+    }
   }
 
   await sql`
