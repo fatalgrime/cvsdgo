@@ -77,8 +77,26 @@ CREATE TABLE IF NOT EXISTS report_strikes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS site_settings (
+  setting_key TEXT PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGSERIAL PRIMARY KEY,
+  action TEXT NOT NULL,
+  details TEXT,
+  actor_user_id TEXT,
+  actor_username TEXT,
+  actor_has_discord_account BOOLEAN NOT NULL DEFAULT FALSE,
+  actor_has_login_account BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS reporting_profiles_user_id_idx ON reporting_profiles(user_id);
 CREATE INDEX IF NOT EXISTS report_strikes_user_id_idx ON report_strikes(user_id);
+CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs(created_at DESC);
 
 INSERT INTO redirects (slug, url, description)
 VALUES

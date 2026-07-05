@@ -5,6 +5,7 @@ import { isAllowedUser } from "@/lib/access";
 import { SidebarAuth } from "@/components/sidebar-auth";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SettingsDialog } from "@/components/settings-dialog";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -36,7 +37,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
               Go
             </span>
           </Link>
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            {isStaff && <SettingsDialog />}
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

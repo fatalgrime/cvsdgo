@@ -1,9 +1,11 @@
 import { revalidateTag } from "next/cache";
+import { auth } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { normalizeSlug } from "@/lib/normalize";
 import { hashPassword } from "@/lib/password";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
+import { logAuditEvent } from "@/lib/audit";
 
 type RedirectRow = {
   id: number;
@@ -139,6 +141,11 @@ export async function POST(request: Request): Promise<Response> {
       VALUES (${slug}, ${url}, ${description}, ${folderId}, ${isLocked}, ${passwordHash}, ${releaseAt}, ${expiresAt})
       RETURNING id, slug, url, description, click_count, is_locked, release_at, expires_at, folder_id;
     `) as (Omit<RedirectRow, "folder_name" | "folder_is_public"> & { folder_name?: string | null; folder_is_public?: boolean | null })[];
+    await logAuditEvent({
+      action: "Link created",
+      details: `${slug} → ${url}${isLocked ? " (locked)" : ""}`,
+      actorUserId: (await auth()).userId ?? null,
+    });
     revalidateTag("redirects");
     return Response.json({ link: rows[0] }, { status: 201 });
   } catch (error) {

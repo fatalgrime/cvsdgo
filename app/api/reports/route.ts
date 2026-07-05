@@ -2,6 +2,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureReportSchema } from "@/lib/report-schema";
 import { isReportStaffUser } from "@/lib/access";
+import { logAuditEvent } from "@/lib/audit";
 import type { ReportCommentRow, ReportRow } from "@/lib/types";
 
 type ReportInsertRow = ReportRow;
@@ -142,6 +143,12 @@ export async function POST(request: Request): Promise<Response> {
     )
     RETURNING id, user_id, user_email, title, description, link_slug, priority, status, metadata, handled_by_user_id, handled_by_name, created_at, updated_at;
   `) as ReportInsertRow[];
+
+  await logAuditEvent({
+    action: "Report submitted",
+    details: `${title}${linkSlug ? ` (${linkSlug})` : ""}`,
+    actorUserId: userId,
+  });
 
   return Response.json({ report: rows[0] }, { status: 201 });
 }

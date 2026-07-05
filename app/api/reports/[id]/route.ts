@@ -2,6 +2,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureReportSchema } from "@/lib/report-schema";
 import { isReportStaffUser } from "@/lib/access";
+import { logAuditEvent } from "@/lib/audit";
 
 type ReportStatusRow = {
   id: number;
@@ -76,6 +77,12 @@ export async function PUT(
   }
 
   const updatedReport = rows[0];
+  await logAuditEvent({
+    action: `Report ${status}`,
+    details: `Report #${id} changed to ${status}`,
+    actorUserId: userId,
+  });
+
   if (status === "rejected") {
     await ensureReportSchema();
 
@@ -153,6 +160,11 @@ export async function DELETE(
       return new Response("Not found", { status: 404 });
     }
 
+    await logAuditEvent({
+      action: "Report deleted",
+      details: `Report #${id} deleted`,
+      actorUserId: userId,
+    });
     return Response.json({ ok: true });
   }
 

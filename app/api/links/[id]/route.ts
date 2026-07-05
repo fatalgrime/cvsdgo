@@ -1,9 +1,11 @@
 import { revalidateTag } from "next/cache";
+import { auth } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { normalizeSlug } from "@/lib/normalize";
 import { hashPassword } from "@/lib/password";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
+import { logAuditEvent } from "@/lib/audit";
 
 type RedirectRow = {
   id: number;
@@ -133,6 +135,11 @@ export async function PUT(
         return new Response("Not found", { status: 404 });
       }
 
+      await logAuditEvent({
+        action: "Link updated",
+        details: `${slug} → ${url}${isLocked ? " (locked)" : ""}`,
+        actorUserId: (await auth()).userId ?? null,
+      });
       revalidateTag("redirects");
       return Response.json({ link: rows[0] });
     }
@@ -162,6 +169,11 @@ export async function PUT(
       return new Response("Not found", { status: 404 });
     }
 
+    await logAuditEvent({
+      action: "Link updated",
+      details: `${slug} → ${url}${isLocked ? " (locked)" : ""}`,
+      actorUserId: (await auth()).userId ?? null,
+    });
     revalidateTag("redirects");
     return Response.json({ link: rows[0] });
   } catch (error) {
@@ -197,6 +209,11 @@ export async function DELETE(
     return new Response("Not found", { status: 404 });
   }
 
+  await logAuditEvent({
+    action: "Link deleted",
+    details: `Link ${id} removed`,
+    actorUserId: (await auth()).userId ?? null,
+  });
   revalidateTag("redirects");
   return Response.json({ ok: true });
 }
