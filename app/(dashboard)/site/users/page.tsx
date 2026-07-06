@@ -288,6 +288,19 @@ export default function UsersPage() {
       </SignedOut>
 
       <SignedIn>
+        <div className="rounded-lg border border-amber-200 border-l-4 border-l-amber-400 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-base text-amber-700">
+              ⚠
+            </div>
+            <div>
+              <p className="font-semibold">
+                <span className="font-semibold">Known Issue:</span> We are aware of an issue that prevents report histories from being viewed correctly and are actively working on a fix. In the meantime, if a user is being disruptive, destructive, or violating the Terms of Service, administrators should ban the user when appropriate.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="panel p-4 md:p-5">
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 md:flex-row md:items-center md:justify-between md:p-4">
             <div>
