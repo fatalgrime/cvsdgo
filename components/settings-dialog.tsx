@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useToast } from "@/components/toast-provider";
+import { PolicyEditor } from "@/components/policy-editor";
 
 type AuditLogEntry = {
   id: number;
@@ -20,6 +21,7 @@ type SettingsResponse = {
   settings: Record<string, string>;
   auditLogs: AuditLogEntry[];
   canEditWebhook: boolean;
+  canEditPolicies: boolean;
   health: {
     databaseConfigured: boolean;
     webhookConfigured: boolean;
@@ -36,6 +38,7 @@ export function SettingsDialog() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [canEditWebhook, setCanEditWebhook] = useState(false);
+  const [canEditPolicies, setCanEditPolicies] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
   const [health, setHealth] = useState<SettingsResponse["health"] | null>(null);
   const [isReverting, setIsReverting] = useState(false);
@@ -64,6 +67,7 @@ export function SettingsDialog() {
         setWebhookUrl(data.settings.discord_webhook_url ?? "");
         setAuditLogs(data.auditLogs ?? []);
         setCanEditWebhook(Boolean(data.canEditWebhook));
+        setCanEditPolicies(Boolean(data.canEditPolicies));
         setHealth(data.health ?? null);
       } catch (error) {
         const message = (error as Error).message || "Unable to load settings.";
@@ -154,6 +158,7 @@ export function SettingsDialog() {
       setWebhookUrl(data.settings.discord_webhook_url ?? "");
       setAuditLogs(data.auditLogs ?? []);
       setCanEditWebhook(Boolean(data.canEditWebhook));
+      setCanEditPolicies(Boolean(data.canEditPolicies));
       setHealth(data.health ?? null);
     } catch (error) {
       const message = (error as Error).message || "Unable to load settings.";
@@ -210,6 +215,15 @@ export function SettingsDialog() {
                     >
                       ×
                     </button>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <PolicyEditor enabled={canEditPolicies} />
+                    {canEditPolicies ? (
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Edit the Terms of Service or Privacy Policy with the markdown document editor.</p>
+                    ) : (
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Policy editing is available to administrators only.</p>
+                    )}
                   </div>
 
                   <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">

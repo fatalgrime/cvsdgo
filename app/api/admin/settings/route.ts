@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureAuditSchema, getRequestContext, logAuditEvent } from "@/lib/audit";
-import { canEditDiscordWebhook, isAllowedUser } from "@/lib/access";
+import { canEditDiscordWebhook, getAccessProfile, isAllowedUser } from "@/lib/access";
 
 type SettingsRequestBody = {
   settingKey?: unknown;
@@ -21,6 +21,7 @@ export async function GET(): Promise<Response> {
   }
 
   await ensureAuditSchema();
+  const accessProfile = await getAccessProfile(userId);
   const sql = getSql();
   const rows = (await sql`
     SELECT setting_key, setting_value
@@ -60,7 +61,7 @@ export async function GET(): Promise<Response> {
     latestActivityAt: logs[0]?.created_at ?? null,
   };
 
-  return Response.json({ settings, auditLogs: logs, canEditWebhook: canEdit, health });
+  return Response.json({ settings, auditLogs: logs, canEditWebhook: canEdit, canEditPolicies: accessProfile.admin, health });
 }
 
 export async function POST(request: Request): Promise<Response> {

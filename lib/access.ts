@@ -94,6 +94,11 @@ export async function isAllowedUser(userId: string | null): Promise<boolean> {
   return profile.canManageLinks;
 }
 
+export async function isAdminUser(userId: string | null): Promise<boolean> {
+  const profile = await getAccessProfile(userId);
+  return profile.admin;
+}
+
 export function canEditDiscordWebhook(userId: string | null): boolean {
   return userId === WEBHOOK_EDIT_USER_ID;
 }
@@ -110,6 +115,20 @@ export async function requireAllowedUser(): Promise<Response | null> {
   }
 
   const allowed = await isAllowedUser(userId);
+  if (!allowed) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
+  return null;
+}
+
+export async function requireAdminUser(): Promise<Response | null> {
+  const { userId } = await auth();
+  if (!userId) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const allowed = await isAdminUser(userId);
   if (!allowed) {
     return new Response("Forbidden", { status: 403 });
   }
