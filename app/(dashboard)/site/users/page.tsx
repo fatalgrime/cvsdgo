@@ -57,6 +57,19 @@ const initialReportingProfile: ReportingProfile = {
   reportLastStrikeAt: null,
 };
 
+type ToastInput = {
+  title: string;
+  description?: string;
+  variant?: "success" | "error" | "info" | "warning";
+  duration?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+  avatarUrl?: string;
+  avatarAlt?: string;
+};
+
 export default function UsersPage() {
   const { toast } = useToast();
   const [users, setUsers] = useState<ManagedUser[]>([]);
@@ -125,9 +138,30 @@ export default function UsersPage() {
         throw new Error(await response.text());
       }
       await loadUsers();
-      toast({ title: "User access updated", description: user.email ?? user.name, variant: "success" });
+      const changedRoleLabel =
+        "admin" in patch && "reportStaff" in patch
+          ? "user access"
+          : "admin" in patch
+          ? "admin access"
+          : "reportStaff" in patch
+          ? "report staff access"
+          : "user access";
+      const title = `${changedRoleLabel.charAt(0).toUpperCase()}${changedRoleLabel.slice(1)} updated`;
+      const description =
+        "admin" in patch
+          ? patch.admin
+            ? "Admin access enabled."
+            : "Admin access removed."
+          : patch.reportStaff
+          ? "Report staff access enabled."
+          : "Report staff access removed.";
+      const undoPatch = {
+        ...(typeof patch.admin === "boolean" ? { admin: !patch.admin } : {}),
+        ...(typeof patch.reportStaff === "boolean" ? { reportStaff: !patch.reportStaff } : {}),
+      };
+      toastForUserWithUndo(user, { title, description, variant: "success" }, "Undo", () => updateRoles(user, undoPatch));
     } catch (error) {
-      toast({ title: "Unable to update access", description: (error as Error).message, variant: "error" });
+      toastForUser(user, { title: "Unable to update access", description: (error as Error).message, variant: "error" });
     } finally {
       setPendingFor(user.id, false);
     }
@@ -151,9 +185,22 @@ export default function UsersPage() {
           : action === "lock"
           ? "Account locked"
           : "Account unlocked";
-      toast({ title, description: user.email ?? user.name, variant: "warning" });
+      const description =
+        action === "force_password_reset"
+          ? "The user will need to set a new password at next sign-in."
+          : action === "lock"
+          ? "The account has been locked."
+          : "The account has been unlocked.";
+      if (action === "lock" || action === "unlock") {
+        const undoAction = action === "lock" ? "unlock" : "lock";
+        toastForUserWithUndo(user, { title, description, variant: "warning" }, "Undo", () =>
+          performAction(user, undoAction)
+        );
+      } else {
+        toastForUser(user, { title, description, variant: "warning" });
+      }
     } catch (error) {
-      toast({ title: "Unable to update account", description: (error as Error).message, variant: "error" });
+      toastForUser(user, { title: "Unable to update account", description: (error as Error).message, variant: "error" });
     } finally {
       setPendingFor(user.id, false);
     }
@@ -183,7 +230,7 @@ export default function UsersPage() {
     } catch (error) {
       const message = (error as Error).message || "Unable to load report history.";
       setReportError(message);
-      toast({ title: "Unable to load report history", description: message, variant: "error" });
+      toastForUser(user, { title: "Unable to load report history", description: message, variant: "error" });
     } finally {
       setReportLoading(false);
     }
@@ -210,9 +257,22 @@ export default function UsersPage() {
       }
       await loadUsers();
       await loadReportHistory(selectedUser);
-      toast({ title: "Report profile updated", description: selectedUser.email ?? selectedUser.name, variant: "success" });
+      toastForUser(selectedUser, {
+        title: "Report profile saved",
+        description:
+          reportBanType === "none"
+            ? "Reporting access restored."
+            : reportBanType === "temporary"
+            ? "Temporary reporting restriction updated."
+            : "Permanent reporting restriction applied.",
+        variant: "success",
+      });
     } catch (error) {
-      toast({ title: "Unable to save report settings", description: (error as Error).message, variant: "error" });
+      toastForUser(selectedUser, {
+        title: "Unable to save report settings",
+        description: (error as Error).message,
+        variant: "error",
+      });
     } finally {
       setSavingReportSettings(false);
       setResetStrikes(false);
@@ -263,6 +323,31 @@ export default function UsersPage() {
       : "This user can still submit reports.";
   const showReportLimitControls = reportBanType !== "none";
   const showStrikeResetControl = reportBanType !== "none";
+
+  function toastForUser(user: ManagedUser, input: ToastInput) {
+    toast({
+      ...input,
+      avatarUrl: user.imageUrl || undefined,
+      avatarAlt: user.name,
+    });
+  }
+
+  function toastForUserWithUndo(
+    user: ManagedUser,
+    input: ToastInput,
+    undoLabel: string,
+    onUndo: () => void | Promise<void>
+  ) {
+    toastForUser(user, {
+      ...input,
+      action: {
+        label: undoLabel,
+        onClick: () => {
+          void onUndo();
+        },
+      },
+    });
+  }
 
   return (
     <section className="space-y-6">
