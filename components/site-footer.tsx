@@ -14,6 +14,12 @@ export function SiteFooter() {
           <Link className="text-oxford-700 hover:underline dark:text-slate-100" href="/site/privacy">
             Privacy Policy
           </Link>
+          <a
+            className="rounded-md border border-oxford-700 bg-oxford-700 px-3 py-1.5 text-white transition hover:bg-oxford-600 dark:border-slate-100 dark:bg-slate-100 dark:text-oxford-800 dark:hover:bg-slate-200"
+            href="https://cvsd.live"
+          >
+            Go to CVSD.LIVE →
+          </a>
         </div>
       </div>
     </footer>
