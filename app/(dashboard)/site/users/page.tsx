@@ -261,6 +261,8 @@ export default function UsersPage() {
       : selectedProfile.reportBanType === "temporary" && selectedProfile.reportBannedUntil
       ? `Active until ${new Date(selectedProfile.reportBannedUntil).toLocaleString()}`
       : "This user can still submit reports.";
+  const showReportLimitControls = reportBanType !== "none";
+  const showStrikeResetControl = reportBanType !== "none";
 
   return (
     <section className="space-y-6">
@@ -268,7 +270,7 @@ export default function UsersPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Users</p>
         <h1 className="mt-3 font-serif text-3xl leading-tight text-oxford-700 md:text-4xl">User Management</h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600 md:text-base">
-          Manage users, access roles, and report moderation settings from one polished workspace.
+          Manage users, access roles, and report moderation settings.
         </p>
       </div>
 
@@ -288,19 +290,6 @@ export default function UsersPage() {
       </SignedOut>
 
       <SignedIn>
-        <div className="rounded-lg border border-amber-200 border-l-4 border-l-amber-400 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-base text-amber-700">
-              ⚠
-            </div>
-            <div>
-              <p className="font-semibold">
-                <span className="font-semibold">Known Issue:</span> We are aware of an issue that prevents report histories from being viewed correctly and are actively working on a fix. In the meantime, if a user is being disruptive, destructive, or violating the Terms of Service, administrators should ban the user when appropriate.
-              </p>
-            </div>
-          </div>
-        </div>
-
         <div className="panel p-4 md:p-5">
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 md:flex-row md:items-center md:justify-between md:p-4">
             <div>
@@ -365,7 +354,7 @@ export default function UsersPage() {
                           </span>
                         )}
                         {reportBadge && (
-                          <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-100">
+                          <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap text-rose-700 dark:border-rose-700 dark:bg-rose-900/20 dark:text-rose-100">
                             {reportBadge}
                           </span>
                         )}
@@ -432,24 +421,25 @@ export default function UsersPage() {
         <AnimatePresence>
           {selectedUser && (
             <motion.div
-              className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-slate-950/70 backdrop-blur-2xl p-4 overflow-auto"
+              className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-2xl"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={handleBackdropClick}
             >
+              <div className="flex min-h-full items-center justify-center p-4">
               <motion.div
-                className="w-full max-w-4xl max-h-[calc(100vh-2rem)] overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl"
+                className="w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950"
                 initial={{ opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
                 transition={{ duration: 0.2 }}
               >
-                <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/80 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/60">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Report history</p>
                     <h2 className="mt-2 font-serif text-2xl text-oxford-700">{selectedUser.name}</h2>
-                    <p className="mt-2 text-sm text-slate-600">Review report activity and manage moderation controls in a compact workspace.</p>
+                    <p className="mt-2 text-sm text-slate-600">Review report activity and manage moderation controls.</p>
                   </div>
                   <button
                     type="button"
@@ -461,96 +451,107 @@ export default function UsersPage() {
                   </button>
                 </div>
 
-                <div className="max-h-[calc(100vh-2rem-73px)] space-y-4 overflow-y-auto p-5">
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-                    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <div className="max-h-[calc(100vh-8rem)] space-y-4 overflow-y-auto p-5">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-600">Moderation settings</p>
-                          <p className="mt-1 text-sm text-slate-600">Adjust report access and limits in the same guided style as the settings dialog.</p>
+                          <p className="mt-1 text-sm text-slate-600">Set the restriction first.</p>
                         </div>
                         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
                           Live
                         </span>
                       </div>
-                      <div className="mt-4 space-y-3">
-                        <div className="rounded-md border border-slate-200 bg-white p-3">
+                      <div className="mt-4 space-y-4">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
                           <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="report-ban-type">
-                            Reporting ban
+                            Reporting access
                           </label>
                           <select
                             id="report-ban-type"
                             value={reportBanType}
                             onChange={(event) => setReportBanType(event.target.value)}
-                            className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700"
+                            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900"
                           >
                             <option value="none">No restriction</option>
                             <option value="temporary">Temporary restriction</option>
                             <option value="permanent">Permanent ban</option>
                           </select>
+                          <p className="mt-2 text-xs text-slate-500">
+                            Choose a restriction level.
+                          </p>
                         </div>
+
                         {reportBanType === "temporary" && (
-                          <div className="rounded-md border border-slate-200 bg-white p-3">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
                             <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="report-ban-until">
-                              Restriction expires
+                              Restriction ends
                             </label>
                             <input
                               id="report-ban-until"
                               type="datetime-local"
                               value={reportBannedUntil}
                               onChange={(event) => setReportBannedUntil(event.target.value)}
-                              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700"
+                              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900"
                             />
                           </div>
                         )}
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-md border border-slate-200 bg-white p-3">
-                            <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="hourly-limit">
-                              Hourly limit
-                            </label>
-                            <input
-                              id="hourly-limit"
-                              type="number"
-                              min="0"
-                              value={reportLimitHourly}
-                              onChange={(event) => setReportLimitHourly(event.target.value)}
-                              placeholder="0"
-                              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700"
-                            />
+
+                        {showReportLimitControls && (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="hourly-limit">
+                                Hourly limit
+                              </label>
+                              <input
+                                id="hourly-limit"
+                                type="number"
+                                min="0"
+                                value={reportLimitHourly}
+                                onChange={(event) => setReportLimitHourly(event.target.value)}
+                                placeholder="0"
+                                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900"
+                              />
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="daily-limit">
+                                Daily limit
+                              </label>
+                              <input
+                                id="daily-limit"
+                                type="number"
+                                min="0"
+                                value={reportLimitDaily}
+                                onChange={(event) => setReportLimitDaily(event.target.value)}
+                                placeholder="0"
+                                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900"
+                              />
+                            </div>
                           </div>
-                          <div className="rounded-md border border-slate-200 bg-white p-3">
-                            <label className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600" htmlFor="daily-limit">
-                              Daily limit
-                            </label>
+                        )}
+
+                        {showStrikeResetControl && (
+                          <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950">
                             <input
-                              id="daily-limit"
-                              type="number"
-                              min="0"
-                              value={reportLimitDaily}
-                              onChange={(event) => setReportLimitDaily(event.target.value)}
-                              placeholder="0"
-                              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700"
+                              type="checkbox"
+                              checked={resetStrikes}
+                              onChange={(event) => setResetStrikes(event.target.checked)}
+                              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
                             />
-                          </div>
-                        </div>
-                        <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={resetStrikes}
-                            onChange={(event) => setResetStrikes(event.target.checked)}
-                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
-                          />
-                          <span>
-                            <span className="font-semibold text-slate-800">Reset strike count</span>
-                            <span className="mt-1 block text-xs text-slate-500">Clear previous strikes before applying new moderation decisions.</span>
-                          </span>
-                        </label>
+                            <span>
+                              <span className="font-semibold text-slate-800 dark:text-slate-100">Reset strike count</span>
+                              <span className="mt-1 block text-xs text-slate-500">Clear previous strikes before applying new moderation actions.</span>
+                            </span>
+                          </label>
+                        )}
+
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             disabled={savingReportSettings}
                             onClick={saveReportingSettings}
-                            className="rounded-md border border-oxford-700 bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
+                            className="rounded-xl border border-oxford-700 bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
                           >
                             Save report settings
                           </button>
@@ -558,13 +559,13 @@ export default function UsersPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-md border border-slate-200 bg-white p-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-600">Profile summary</p>
                           <p className="mt-1 text-sm text-slate-600">A quick view of the current report state and recent activity.</p>
                         </div>
-                        <span className="rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
+                        <span className="inline-flex items-center whitespace-nowrap rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
                           {selectedProfile.reportStrikes} strike{selectedProfile.reportStrikes === 1 ? "" : "s"}
                         </span>
                       </div>
@@ -587,11 +588,11 @@ export default function UsersPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-md border border-slate-200 bg-white p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-600">Recent reports</p>
-                        <p className="mt-1 text-sm text-slate-600">A concise list of the latest reports submitted by this user.</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-600">Recent reports</p>
+                        <p className="mt-1 text-sm text-slate-600">A list of the latest reports submitted by this user.</p>
                       </div>
                       <span className="rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
                         {reportHistory.length} item{reportHistory.length === 1 ? "" : "s"}
@@ -609,7 +610,7 @@ export default function UsersPage() {
                           <div key={report.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
                             <div className="flex items-center justify-between gap-3 text-sm">
                               <p className="font-semibold text-slate-800">{report.title}</p>
-                              <span className="rounded-full border border-slate-300 bg-white px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-600">
+                              <span className="inline-flex items-center whitespace-nowrap rounded-full border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600 dark:border-slate-700 dark:bg-slate-900">
                                 {report.status}
                               </span>
                             </div>
@@ -624,11 +625,11 @@ export default function UsersPage() {
                   </div>
 
                   {reportComments.length > 0 && (
-                    <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                       <p className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-700">Comments</p>
                       <div className="mt-4 space-y-3">
                         {reportComments.map((comment) => (
-                          <div key={comment.id} className="rounded-md border border-slate-200 bg-white p-3">
+                          <div key={comment.id} className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
                             <p className="text-sm font-semibold text-slate-800">Comment on report #{comment.report_id}</p>
                             <p className="mt-2 text-sm text-slate-600">{comment.body}</p>
                             <p className="mt-2 text-xs text-slate-500">By {comment.author_name ?? comment.author_user_id} · {new Date(comment.created_at).toLocaleString()}</p>
@@ -639,6 +640,7 @@ export default function UsersPage() {
                   )}
                 </div>
               </motion.div>
+              </div>
           </motion.div>
         )}
       </AnimatePresence>
