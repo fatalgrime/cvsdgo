@@ -19,7 +19,7 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
   useEffect(() => {
     const interval = setInterval(() => {
       router.refresh();
-    }, 15000);
+    }, 60_000);
 
     const handleRefreshEvent = () => {
       router.refresh();

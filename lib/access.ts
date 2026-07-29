@@ -5,6 +5,46 @@ const ALLOWED_DISCORD_ID = "1012507248305647718";
 const ALLOWED_USERNAMES = ["admin"];
 export const WEBHOOK_EDIT_USER_ID = "user_3AhQ5Y8oIecKRmPgo7mEtNduoaW";
 
+const ACCESS_CACHE_TTL_MS = 30_000;
+
+export type CachedUserInfo = {
+  profile: AccessProfile;
+  username: string | null;
+  hasDiscordAccount: boolean;
+  hasLoginAccount: boolean;
+};
+
+type CacheEntry = CachedUserInfo & { expiresAt: number };
+const accessProfileCache = new Map<string, CacheEntry>();
+
+function getCachedEntry(userId: string): CachedUserInfo | null {
+  const entry = accessProfileCache.get(userId);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    accessProfileCache.delete(userId);
+    return null;
+  }
+  const { expiresAt: _exp, ...info } = entry;
+  void _exp;
+  return info;
+}
+
+function setCachedEntry(userId: string, info: CachedUserInfo): void {
+  accessProfileCache.set(userId, { ...info, expiresAt: Date.now() + ACCESS_CACHE_TTL_MS });
+}
+
+function getCachedProfile(userId: string): AccessProfile | null {
+  return getCachedEntry(userId)?.profile ?? null;
+}
+
+export function invalidateAccessProfileCache(userId: string): void {
+  accessProfileCache.delete(userId);
+}
+
+export function getCachedUserInfo(userId: string): CachedUserInfo | null {
+  return getCachedEntry(userId);
+}
+
 type CVSDGoMetadata = {
   admin?: boolean;
   reportStaff?: boolean;
@@ -85,8 +125,24 @@ export async function getAccessProfile(userId: string | null): Promise<AccessPro
     };
   }
 
+  const cached = getCachedProfile(userId);
+  if (cached) return cached;
+
   const user = await (await clerkClient()).users.getUser(userId);
-  return buildAccessProfile(user);
+  const profile = buildAccessProfile(user);
+
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  const username = user.username || fullName || user.emailAddresses[0]?.emailAddress || null;
+  const hasDiscordAccount = user.externalAccounts.some((account) =>
+    account.provider.toLowerCase().includes("discord")
+  );
+  const hasLoginAccount =
+    Boolean((user as { passwordEnabled?: boolean }).passwordEnabled) ||
+    user.emailAddresses.length > 0 ||
+    user.externalAccounts.length > 0;
+
+  setCachedEntry(userId, { profile, username, hasDiscordAccount, hasLoginAccount });
+  return profile;
 }
 
 export async function isAllowedUser(userId: string | null): Promise<boolean> {

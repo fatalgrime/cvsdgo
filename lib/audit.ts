@@ -1,5 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
+import { getCachedUserInfo } from "@/lib/access";
 
 type ActorInfo = {
   username: string | null;
@@ -24,12 +25,36 @@ type AuditEventInput = {
 
 const suspiciousActivityBuckets = new Map<string, number[]>();
 
+const BUCKET_PRUNE_INTERVAL_MS = 5 * 60_000;
+const BUCKET_WINDOW_MS = 60_000;
+
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const cutoff = Date.now() - BUCKET_WINDOW_MS;
+    for (const [key, timestamps] of suspiciousActivityBuckets) {
+      const still_recent = timestamps.filter((t) => t > cutoff);
+      if (still_recent.length === 0) {
+        suspiciousActivityBuckets.delete(key);
+      } else {
+        suspiciousActivityBuckets.set(key, still_recent);
+      }
+    }
+  }, BUCKET_PRUNE_INTERVAL_MS);
+}
+
+let ensureAuditSchemaPromise: Promise<void> | null = null;
+
 async function getActorInfo(userId?: string | null): Promise<ActorInfo> {
   if (!userId) {
+    return { username: null, hasDiscordAccount: false, hasLoginAccount: false };
+  }
+
+  const cached = getCachedUserInfo(userId);
+  if (cached) {
     return {
-      username: null,
-      hasDiscordAccount: false,
-      hasLoginAccount: false,
+      username: cached.username,
+      hasDiscordAccount: cached.hasDiscordAccount,
+      hasLoginAccount: cached.hasLoginAccount,
     };
   }
 
@@ -38,20 +63,16 @@ async function getActorInfo(userId?: string | null): Promise<ActorInfo> {
     const user = await client.users.getUser(userId);
     const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
     const username = user.username || fullName || user.emailAddresses[0]?.emailAddress || null;
-    const hasDiscordAccount = user.externalAccounts.some((account) => account.provider.toLowerCase().includes("discord"));
-    const hasLoginAccount = Boolean((user as { passwordEnabled?: boolean }).passwordEnabled) || user.emailAddresses.length > 0 || user.externalAccounts.length > 0;
-
-    return {
-      username,
-      hasDiscordAccount,
-      hasLoginAccount,
-    };
+    const hasDiscordAccount = user.externalAccounts.some((account) =>
+      account.provider.toLowerCase().includes("discord")
+    );
+    const hasLoginAccount =
+      Boolean((user as { passwordEnabled?: boolean }).passwordEnabled) ||
+      user.emailAddresses.length > 0 ||
+      user.externalAccounts.length > 0;
+    return { username, hasDiscordAccount, hasLoginAccount };
   } catch {
-    return {
-      username: null,
-      hasDiscordAccount: false,
-      hasLoginAccount: false,
-    };
+    return { username: null, hasDiscordAccount: false, hasLoginAccount: false };
   }
 }
 
@@ -83,7 +104,7 @@ function detectSuspiciousActivity(input: AuditEventInput): "info" | "warning" | 
   const bucketKey = `${input.actorUserId ?? "anonymous"}:${input.action.toLowerCase()}`;
   const now = Date.now();
   const timestamps = suspiciousActivityBuckets.get(bucketKey) ?? [];
-  const recent = timestamps.filter((stamp) => now - stamp < 60_000);
+  const recent = timestamps.filter((stamp) => now - stamp < BUCKET_WINDOW_MS);
   recent.push(now);
   suspiciousActivityBuckets.set(bucketKey, recent);
 
@@ -122,7 +143,7 @@ async function getDiscordWebhookUrl(): Promise<string | null> {
   return rows[0]?.setting_value ?? null;
 }
 
-export async function ensureAuditSchema(): Promise<void> {
+async function runEnsureAuditSchema(): Promise<void> {
   if (!hasDatabaseUrl()) return;
 
   const sql = getSql();
@@ -171,6 +192,16 @@ export async function ensureAuditSchema(): Promise<void> {
   await sql`
     CREATE INDEX IF NOT EXISTS audit_logs_severity_idx ON audit_logs(severity);
   `;
+}
+
+export async function ensureAuditSchema(): Promise<void> {
+  if (!ensureAuditSchemaPromise) {
+    ensureAuditSchemaPromise = runEnsureAuditSchema().catch((error) => {
+      ensureAuditSchemaPromise = null;
+      throw error;
+    });
+  }
+  await ensureAuditSchemaPromise;
 }
 
 export async function logAuditEvent(input: AuditEventInput): Promise<void> {
@@ -246,6 +277,5 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
       }),
     });
   } catch {
-    // Swallow webhook failures to avoid breaking user flows.
   }
 }

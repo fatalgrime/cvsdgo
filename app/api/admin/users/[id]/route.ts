@@ -1,5 +1,5 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { getCVSDGoRoleMetadata, isAllowedUser } from "@/lib/access";
+import { getCVSDGoRoleMetadata, invalidateAccessProfileCache, isAllowedUser } from "@/lib/access";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureReportSchema } from "@/lib/report-schema";
 import { getRequestContext, logAuditEvent } from "@/lib/audit";
@@ -249,6 +249,8 @@ export async function PATCH(
       actorIpAddress: context.actorIpAddress,
       actorUserAgent: context.actorUserAgent,
     });
+    
+    invalidateAccessProfileCache(id);
   }
 
   let profile = defaultReportingProfile();

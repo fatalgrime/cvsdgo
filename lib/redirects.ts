@@ -48,19 +48,3 @@ export async function getAllRedirects(): Promise<RedirectRow[]> {
   }
   return getAllRedirectsCached();
 }
-
-export async function incrementAndResolveUrl(slug: string): Promise<string | null> {
-  if (!hasDatabaseUrl()) {
-    return null;
-  }
-
-  const sql = getSql();
-  const rows = (await sql`
-    UPDATE redirects
-    SET click_count = COALESCE(click_count, 0) + 1
-    WHERE slug = ${slug}
-    RETURNING url;
-  `) as { url: string }[];
-
-  return rows[0]?.url ?? null;
-}
