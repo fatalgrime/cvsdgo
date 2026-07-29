@@ -18,14 +18,14 @@ export default async function HomePage() {
         <p className="mt-4 max-w-3xl text-sm text-slate-600 md:text-base">
           Search through our links and share shortened links to others you know!
         </p>
-        <div className="mt-6 grid grid-cols-2 gap-3 md:max-w-md">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="mt-5 grid grid-cols-2 gap-3 md:max-w-md">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/40">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Active links</p>
-            <p className="mt-1 text-2xl font-semibold text-oxford-700">{total}</p>
+            <p className="mt-1 text-2xl font-semibold text-oxford-700 dark:text-slate-100">{total}</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/40">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Locked links</p>
-            <p className="mt-1 text-2xl font-semibold text-oxford-700">{locked}</p>
+            <p className="mt-1 text-2xl font-semibold text-oxford-700 dark:text-slate-100">{locked}</p>
           </div>
         </div>
       </div>
