@@ -135,7 +135,7 @@ export function CookieConsentBanner() {
       <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl shadow-slate-900/20 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 dark:shadow-black/40">
         <div className="grid gap-4 p-4 sm:p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <p className="text-sm font-semibold leading-6 text-oxford-700 dark:text-slate-100">
-            We use necessary cookies to keep CVSD Go secure and working. Declining keeps only necessary cookies enabled.
+            🍪 We use necessary cookies to keep CVSD Go secure and working, but not the kind you eat.
           </p>
 
           <div className="flex flex-col gap-2 sm:flex-row">
