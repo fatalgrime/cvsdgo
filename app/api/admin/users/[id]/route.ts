@@ -1,5 +1,5 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { getCVSDGoRoleMetadata, invalidateAccessProfileCache, isAllowedUser } from "@/lib/access";
+import { getAccessProfileForUser, getCVSDGoRoleMetadata, invalidateAccessProfileCache, isAllowedUser } from "@/lib/access";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureReportSchema } from "@/lib/report-schema";
 import { getRequestContext, logAuditEvent } from "@/lib/audit";
@@ -211,7 +211,10 @@ export async function PATCH(
 
   const { id } = await params;
   const client = await clerkClient();
+  const actor = await client.users.getUser(userId);
+  const actorAccess = getAccessProfileForUser(actor);
   const target = await client.users.getUser(id);
+  const targetAccess = getAccessProfileForUser(target);
   const context = getRequestContext(request);
 
   let updated = target;
@@ -230,6 +233,13 @@ export async function PATCH(
   }
 
   if (Object.keys(roleUpdate).length > 0) {
+    if (roleUpdate.admin === false && id === userId) {
+      return new Response("You cannot remove your own admin privileges", { status: 400 });
+    }
+    if (roleUpdate.admin === false && targetAccess.admin && !actorAccess.allowlisted) {
+      return new Response("Only allowlisted users can remove an admin's privileges", { status: 403 });
+    }
+
     const privateMetadata = getPrivateMetadataObject(target);
     const cvsdGo = isObject(privateMetadata.cvsdGo) ? (privateMetadata.cvsdGo as Record<string, unknown>) : {};
     const nextCVSDGo = {
@@ -379,9 +389,19 @@ export async function POST(
   const { id } = await params;
   const client = await clerkClient();
   const context = getRequestContext(request);
+  const target = await client.users.getUser(id);
+  const targetAccess = getAccessProfileForUser(target);
 
   if (id === userId && action === "lock") {
     return new Response("You cannot lock your own account", { status: 400 });
+  }
+
+  if (id === userId && action === "force_password_reset") {
+    return new Response("You cannot require a password reset for your own account", { status: 400 });
+  }
+
+  if (targetAccess.allowlisted && (action === "lock" || action === "force_password_reset")) {
+    return new Response("Allowlisted users cannot be locked or required to reset passwords", { status: 400 });
   }
 
   if (action === "lock") {

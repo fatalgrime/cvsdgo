@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
 import Image from "next/image";
 import { useToast } from "@/components/toast-provider";
 import type { ReportCommentRow, ReportRow } from "@/lib/types";
@@ -187,15 +187,21 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const cfg: Record<ConfirmAction["type"], { title: string; body: string; cta: string; danger: boolean }> = {
-    lock:        { title: "Lock account?",                body: "The user will be unable to sign in until unlocked.", cta: "Lock account",        danger: true  },
-    unlock:      { title: "Unlock account?",              body: "The user will regain access immediately.",           cta: "Unlock account",      danger: false },
-    pwreset:     { title: "Require password reset?",      body: "The user will be forced to set a new password at next sign-in.", cta: "Require reset", danger: false },
-    bulkLock:    { title: "Lock selected accounts?",      body: `${(action as { ids: string[] }).ids.length} account(s) will be locked.`, cta: "Lock all", danger: true  },
-    bulkUnlock:  { title: "Unlock selected accounts?",    body: `${(action as { ids: string[] }).ids.length} account(s) will be unlocked.`, cta: "Unlock all", danger: false },
-    bulkPwreset: { title: "Require password resets?",     body: `${(action as { ids: string[] }).ids.length} account(s) will require a new password.`, cta: "Require all", danger: false },
-  };
-  const { title, body, cta, danger } = cfg[action.type];
+  let cfg: { title: string; body: string; cta: string; danger: boolean };
+  if (action.type === "lock") {
+    cfg = { title: "Lock account?", body: "The user will be unable to sign in until unlocked.", cta: "Lock account", danger: true };
+  } else if (action.type === "unlock") {
+    cfg = { title: "Unlock account?", body: "The user will regain access immediately.", cta: "Unlock account", danger: false };
+  } else if (action.type === "pwreset") {
+    cfg = { title: "Require password reset?", body: "The user will be forced to set a new password at next sign-in.", cta: "Require reset", danger: false };
+  } else if (action.type === "bulkLock") {
+    cfg = { title: "Lock selected accounts?", body: `${action.ids.length} account(s) will be locked.`, cta: "Lock all", danger: true };
+  } else if (action.type === "bulkUnlock") {
+    cfg = { title: "Unlock selected accounts?", body: `${action.ids.length} account(s) will be unlocked.`, cta: "Unlock all", danger: false };
+  } else {
+    cfg = { title: "Require password resets?", body: `${action.ids.length} account(s) will require a new password.`, cta: "Require all", danger: false };
+  }
+  const { title, body, cta, danger } = cfg;
 
   return (
     <motion.div
@@ -246,12 +252,14 @@ function ActionsMenu({
   onLock,
   onPwReset,
   onViewReports,
+  currentUserId,
 }: {
   user: ManagedUser;
   isBusy: boolean;
   onLock: () => void;
   onPwReset: () => void;
   onViewReports: () => void;
+  currentUserId: string | null | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
@@ -283,6 +291,7 @@ function ActionsMenu({
   }
 
   const item = "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800";
+  const protectedAction = user.allowlisted || user.id === currentUserId;
 
   return (
     <>
@@ -324,7 +333,13 @@ function ActionsMenu({
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 View Report History
               </button>
-              <button role="menuitem" type="button" className={item} onClick={() => { onPwReset(); setOpen(false); }}>
+              <button
+                role="menuitem"
+                type="button"
+                className={`${item} disabled:cursor-not-allowed disabled:opacity-50`}
+                disabled={protectedAction}
+                onClick={() => { onPwReset(); setOpen(false); }}
+              >
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 Require Password Reset
               </button>
@@ -332,7 +347,8 @@ function ActionsMenu({
               <button
                 role="menuitem"
                 type="button"
-                className={`${item} ${user.locked ? "text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40" : "text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"}`}
+                disabled={protectedAction && !user.locked}
+                className={`${item} disabled:cursor-not-allowed disabled:opacity-50 ${user.locked ? "text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40" : "text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"}`}
                 onClick={() => { onLock(); setOpen(false); }}
               >
                 {user.locked ? (
@@ -589,6 +605,7 @@ function ReportModal({
 
 export default function UsersPage() {
   const { toast } = useToast();
+  const { userId: currentUserId } = useAuth();
 
   // --- data state ---
   const [users, setUsers] = useState<ManagedUser[]>([]);
@@ -680,6 +697,10 @@ export default function UsersPage() {
   const allVisibleIds = useMemo(() => processedUsers.map((u) => u.id), [processedUsers]);
   const allSelected = allVisibleIds.length > 0 && allVisibleIds.every((id) => selected.has(id));
   const someSelected = selected.size > 0;
+  const selectedIds = Array.from(selected);
+  const canPerformProtectedAction = (id: string) => id !== currentUserId && !users.find((user) => user.id === id)?.allowlisted;
+  const selectedProtectedActionIds = selectedIds.filter(canPerformProtectedAction);
+  const currentUserAllowlisted = Boolean(users.find((user) => user.id === currentUserId)?.allowlisted);
 
   function toggleSelectAll() {
     if (allSelected) {
@@ -762,7 +783,10 @@ export default function UsersPage() {
   }
 
   async function executeBulk(action: "lock" | "unlock" | "force_password_reset", ids: string[]) {
-    await Promise.all(ids.map((id) => {
+    const actionableIds = action === "unlock"
+      ? ids
+      : ids.filter(canPerformProtectedAction);
+    await Promise.all(actionableIds.map((id) => {
       const user = users.find((u) => u.id === id);
       return user ? performAction(user, action) : Promise.resolve();
     }));
@@ -961,9 +985,9 @@ export default function UsersPage() {
             </p>
             {someSelected && (
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => setConfirmAction({ type: "bulkLock",    ids: Array.from(selected) })} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300">Lock selected</button>
-                <button type="button" onClick={() => setConfirmAction({ type: "bulkUnlock",  ids: Array.from(selected) })} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">Unlock selected</button>
-                <button type="button" onClick={() => setConfirmAction({ type: "bulkPwreset", ids: Array.from(selected) })} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">Require reset</button>
+                <button type="button" disabled={selectedProtectedActionIds.length === 0} onClick={() => setConfirmAction({ type: "bulkLock",    ids: selectedProtectedActionIds })} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300">Lock selected</button>
+                <button type="button" onClick={() => setConfirmAction({ type: "bulkUnlock",  ids: selectedIds })} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">Unlock selected</button>
+                <button type="button" disabled={selectedProtectedActionIds.length === 0} onClick={() => setConfirmAction({ type: "bulkPwreset", ids: selectedProtectedActionIds })} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">Require reset</button>
                 <button type="button" onClick={() => setSelected(new Set())} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Clear</button>
               </div>
             )}
@@ -1020,6 +1044,11 @@ export default function UsersPage() {
                   const isBusy = pending[user.id] === true;
                   const status = userStatus(user);
                   const isSelected = selected.has(user.id);
+                  const adminToggleDisabled =
+                    isBusy ||
+                    user.allowlisted ||
+                    (user.metadataAdmin && user.id === currentUserId) ||
+                    (user.metadataAdmin && user.admin && !currentUserAllowlisted);
 
                   return (
                     <motion.li
@@ -1080,7 +1109,7 @@ export default function UsersPage() {
                             id={`admin-${user.id}`}
                             label="Admin"
                             checked={user.metadataAdmin}
-                            disabled={isBusy || user.allowlisted}
+                            disabled={adminToggleDisabled}
                             title={user.allowlisted ? "Granted automatically via allowlist" : "Toggle admin access"}
                             onChange={(next) => void updateRoles(user, { admin: next })}
                           />
@@ -1101,6 +1130,7 @@ export default function UsersPage() {
                           onLock={() => setConfirmAction({ type: user.locked ? "unlock" : "lock", user })}
                           onPwReset={() => setConfirmAction({ type: "pwreset", user })}
                           onViewReports={() => void loadReportHistory(user)}
+                          currentUserId={currentUserId}
                         />
                       </div>
 
@@ -1126,6 +1156,7 @@ export default function UsersPage() {
                               onLock={() => setConfirmAction({ type: user.locked ? "unlock" : "lock", user })}
                               onPwReset={() => setConfirmAction({ type: "pwreset", user })}
                               onViewReports={() => void loadReportHistory(user)}
+                              currentUserId={currentUserId}
                             />
                           </div>
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -1139,7 +1170,7 @@ export default function UsersPage() {
                               id={`mobile-admin-${user.id}`}
                               label="Admin access"
                               checked={user.metadataAdmin}
-                              disabled={isBusy || user.allowlisted}
+                              disabled={adminToggleDisabled}
                               onChange={(next) => void updateRoles(user, { admin: next })}
                             />
                             <ToggleSwitch

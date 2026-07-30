@@ -258,7 +258,7 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(notifyDiscord ? { content: "@everyone" } : {}),
+          allowed_mentions: { parse: [], users: [], roles: [] },
           embeds: [
             {
               title: `Audit: ${input.action}`,
