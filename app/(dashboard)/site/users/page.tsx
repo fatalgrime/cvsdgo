@@ -205,7 +205,7 @@ function ConfirmDialog({
 
   return (
     <motion.div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
+      className="modal-backdrop z-[200] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -420,7 +420,7 @@ function ReportModal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 backdrop-blur-sm"
+      className="modal-backdrop z-[100] overflow-y-auto bg-slate-950/70 backdrop-blur-sm"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

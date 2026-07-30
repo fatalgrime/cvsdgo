@@ -315,7 +315,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
           <AnimatePresence>
             {isSelectionOpen && (
               <motion.div
-                className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
+                className="modal-backdrop z-[120] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -381,7 +381,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
 
             {isLoading && selection.stage === "loading" && (
               <motion.div
-                className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
+                className="modal-backdrop z-[130] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -408,7 +408,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
 
             {selection.stage === "editor" && selectedDocument && (
               <motion.div
-                className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/65 px-4 py-6 backdrop-blur-sm"
+                className="modal-backdrop z-[140] flex items-center justify-center bg-slate-950/65 px-4 py-6 backdrop-blur-sm"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -543,7 +543,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
 
             {confirmState.open && (
               <motion.div
-                className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
+                className="modal-backdrop z-[150] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}

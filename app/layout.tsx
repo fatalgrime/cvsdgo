@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Lora } from "next/font/google";
 import Script from "next/script";
 import { ToastProvider } from "@/components/toast-provider";
+import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="flex-1">{children}</div>
               <SiteFooter />
             </div>
+            <CookieConsentBanner />
           </ToastProvider>
         </ClerkProvider>
       </body>

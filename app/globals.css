@@ -35,6 +35,14 @@ body {
   @apply rounded-2xl border border-slate-200 bg-white shadow-md;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: auto;
+  min-height: 100dvh;
+}
+
 .dark body {
   @apply text-slate-100;
 }
