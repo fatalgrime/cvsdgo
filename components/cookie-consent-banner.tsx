@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type ConsentChoice = "accepted" | "declined";
@@ -32,15 +33,15 @@ const CONSENT_CATEGORIES: ConsentCategory[] = [
   },
   {
     id: "analytics",
-    label: "Analytics",
+    label: "Usage",
     required: false,
-    description: "Reserved for optional usage measurement if added later.",
+    description: "Optional aggregate usage information that helps improve performance and reliability.",
   },
   {
     id: "preferences",
     label: "Preferences",
     required: false,
-    description: "Reserved for optional personalization beyond essential settings.",
+    description: "Optional settings that remember preferences and improve the user experience.",
   },
 ];
 
@@ -134,9 +135,18 @@ export function CookieConsentBanner() {
     <div className="fixed inset-x-0 bottom-0 z-[160] px-4 pb-4 sm:px-6 sm:pb-6" role="region" aria-label="Cookie consent">
       <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl shadow-slate-900/20 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 dark:shadow-black/40">
         <div className="grid gap-4 p-4 sm:p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-          <p className="text-sm font-semibold leading-6 text-oxford-700 dark:text-slate-100">
-            🍪 We use necessary cookies to keep CVSD Go secure and working, but not the kind you eat.
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm font-semibold leading-6 text-oxford-700 dark:text-slate-100">
+              CVSD Go uses strictly necessary cookies and similar technologies for core functionality, including login, session management, and security. Optional cookies may remember preferences and help us understand aggregate usage so we can improve performance and reliability.
+            </p>
+            <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
+              For more information, please visit our{" "}
+              <Link className="font-semibold text-oxford-700 underline underline-offset-2 hover:text-oxford-600 dark:text-slate-100" href="/site/privacy">
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
