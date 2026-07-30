@@ -28,7 +28,7 @@ const getAllRedirectsCached = unstable_cache(
           f.sort_order AS folder_sort_order
         FROM redirects r
         LEFT JOIN link_folders f ON f.id = r.folder_id
-        WHERE r.folder_id IS NULL OR f.is_public = true
+        WHERE r.folder_id IS NULL OR f.is_public IS DISTINCT FROM false
         ORDER BY COALESCE(f.sort_order, 0), COALESCE(f.name, ''), r.slug ASC;
       `) as RedirectRow[];
 

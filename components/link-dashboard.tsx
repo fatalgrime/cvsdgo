@@ -211,7 +211,12 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
         ))}
       </div>
 
-      {filteredLinks.length === 0 && (
+      {links.length === 0 ? (
+        <div className="panel mt-8 p-8 text-center">
+          <p className="text-lg font-semibold text-oxford-700">No public links are available.</p>
+          <p className="mt-2 text-sm text-slate-600">Check that links are assigned to public folders or have no folder selected.</p>
+        </div>
+      ) : filteredLinks.length === 0 && (
         <div className="panel mt-8 p-8 text-center">
           <p className="text-lg font-semibold text-oxford-700">No links matched your search.</p>
           <p className="mt-2 text-sm text-slate-600">Try a different keyword.</p>
