@@ -207,75 +207,78 @@ export async function ensureAuditSchema(): Promise<void> {
 export async function logAuditEvent(input: AuditEventInput): Promise<void> {
   if (!hasDatabaseUrl()) return;
 
-  await ensureAuditSchema();
-
-  const actor = await getActorInfo(input.actorUserId);
-  const username = input.actorUsername ?? actor.username;
-  const webhookUrl = await getDiscordWebhookUrl();
-  const severity = detectSuspiciousActivity(input);
-  const details = input.details ?? "No additional details were provided.";
-  const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
-  const sql = getSql();
-
-  await sql`
-    INSERT INTO audit_logs (
-      action,
-      details,
-      actor_user_id,
-      actor_username,
-      actor_has_discord_account,
-      actor_has_login_account,
-      actor_ip_address,
-      actor_user_agent,
-      metadata,
-      severity,
-      category,
-      source
-    )
-    VALUES (
-      ${input.action},
-      ${details},
-      ${input.actorUserId ?? null},
-      ${username ?? null},
-      ${input.actorHasDiscordAccount ?? actor.hasDiscordAccount},
-      ${input.actorHasLoginAccount ?? actor.hasLoginAccount},
-      ${input.actorIpAddress ?? null},
-      ${input.actorUserAgent ?? null},
-      ${metadataJson},
-      ${severity},
-      ${input.category ?? null},
-      ${input.source ?? null}
-    );
-  `;
-
-  if (!webhookUrl) return;
-
-  const notifyDiscord = shouldNotifyDiscord(input, details);
-
   try {
-    await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...(notifyDiscord ? { content: "@everyone" } : {}),
-        embeds: [
-          {
-            title: `Audit: ${input.action}`,
-            color: notifyDiscord ? 0xef4444 : 0x1d4ed8,
-            description: details,
-            fields: [
-              { name: "User", value: username || "Unknown user", inline: true },
-              { name: "Linked to Discord", value: input.actorHasDiscordAccount ?? actor.hasDiscordAccount ? "Yes" : "No", inline: true },
-              { name: "Has login account", value: input.actorHasLoginAccount ?? actor.hasLoginAccount ? "Yes" : "No", inline: true },
-              { name: "Severity", value: severity, inline: true },
-              { name: "Action", value: input.action, inline: false },
-              { name: "Details", value: details, inline: false },
-            ],
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      }),
-    });
+    await ensureAuditSchema();
+
+    const actor = await getActorInfo(input.actorUserId);
+    const username = input.actorUsername ?? actor.username;
+    const webhookUrl = await getDiscordWebhookUrl();
+    const severity = detectSuspiciousActivity(input);
+    const details = input.details ?? "No additional details were provided.";
+    const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
+    const sql = getSql();
+
+    await sql`
+      INSERT INTO audit_logs (
+        action,
+        details,
+        actor_user_id,
+        actor_username,
+        actor_has_discord_account,
+        actor_has_login_account,
+        actor_ip_address,
+        actor_user_agent,
+        metadata,
+        severity,
+        category,
+        source
+      )
+      VALUES (
+        ${input.action},
+        ${details},
+        ${input.actorUserId ?? null},
+        ${username ?? null},
+        ${input.actorHasDiscordAccount ?? actor.hasDiscordAccount},
+        ${input.actorHasLoginAccount ?? actor.hasLoginAccount},
+        ${input.actorIpAddress ?? null},
+        ${input.actorUserAgent ?? null},
+        ${metadataJson}::jsonb,
+        ${severity},
+        ${input.category ?? null},
+        ${input.source ?? null}
+      );
+    `;
+
+    if (!webhookUrl) return;
+
+    const notifyDiscord = shouldNotifyDiscord(input, details);
+
+    try {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(notifyDiscord ? { content: "@everyone" } : {}),
+          embeds: [
+            {
+              title: `Audit: ${input.action}`,
+              color: notifyDiscord ? 0xef4444 : 0x1d4ed8,
+              description: details,
+              fields: [
+                { name: "User", value: username || "Unknown user", inline: true },
+                { name: "Linked to Discord", value: input.actorHasDiscordAccount ?? actor.hasDiscordAccount ? "Yes" : "No", inline: true },
+                { name: "Has login account", value: input.actorHasLoginAccount ?? actor.hasLoginAccount ? "Yes" : "No", inline: true },
+                { name: "Severity", value: severity, inline: true },
+                { name: "Action", value: input.action, inline: false },
+                { name: "Details", value: details, inline: false },
+              ],
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        }),
+      });
+    } catch {
+    }
   } catch {
   }
 }

@@ -99,7 +99,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   await ensureLinkSchema();
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return new Response("Invalid request", { status: 400 });
+  }
+
   const context = getRequestContext(request);
   const slug = normalizeSlug(String(body.slug ?? ""));
   const description = String(body.description ?? "").trim() || null;

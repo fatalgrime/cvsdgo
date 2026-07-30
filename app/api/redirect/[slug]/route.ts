@@ -8,9 +8,15 @@ type RedirectDestinationRow = {
   url: string;
   is_locked: boolean;
   password_hash: string | null;
-  release_at: Date | null;
-  expires_at: Date | null;
+  release_at: string | Date | null;
+  expires_at: string | Date | null;
 };
+
+function parseStoredDate(value: string | Date | null): Date | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 async function getCanOverrideForUser(): Promise<boolean> {
   const { userId } = await auth();
@@ -44,8 +50,8 @@ export async function GET(
   }
 
   const now = new Date();
-  const releaseAt = rows[0].release_at as Date | null;
-  const expiresAt = rows[0].expires_at as Date | null;
+  const releaseAt = parseStoredDate(rows[0].release_at);
+  const expiresAt = parseStoredDate(rows[0].expires_at);
   if (releaseAt && now < releaseAt) {
     return Response.json({ destinationUrl: null, inactive: true, reason: "scheduled" }, { status: 404 });
   }
@@ -78,7 +84,11 @@ export async function POST(
 
   const { slug: rawSlug } = await params;
   const slug = normalizeSlug(rawSlug);
-  const body = await request.json();
+  const body = (await request.json().catch(() => null)) as { password?: unknown; override?: unknown } | null;
+  if (!body) {
+    return new Response("Invalid request", { status: 400 });
+  }
+
   const password = String(body.password ?? "");
   const requestedOverride = body.override === true || body.override === "true";
 
@@ -94,8 +104,8 @@ export async function POST(
   }
 
   const now = new Date();
-  const releaseAt = rows[0].release_at as Date | null;
-  const expiresAt = rows[0].expires_at as Date | null;
+  const releaseAt = parseStoredDate(rows[0].release_at);
+  const expiresAt = parseStoredDate(rows[0].expires_at);
   if (releaseAt && now < releaseAt) {
     return Response.json({ destinationUrl: null, inactive: true, reason: "scheduled" }, { status: 404 });
   }

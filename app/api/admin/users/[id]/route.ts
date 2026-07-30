@@ -71,6 +71,17 @@ function parseLimitValue(value: unknown, fallback: number): number {
   return Math.floor(parsed);
 }
 
+function parseOptionalDateString(value: unknown, fallback: string | null): string | null {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+  return date.toISOString();
+}
+
 function defaultReportingProfile(): ReportingProfileData {
   return {
     reportBanType: "none",
@@ -289,9 +300,7 @@ export async function PATCH(
       nextBanType === "none"
         ? null
         : nextBanType === "temporary"
-        ? typeof body.bannedUntil === "string"
-          ? new Date(body.bannedUntil).toISOString()
-          : currentProfile.banned_until
+        ? parseOptionalDateString(body.bannedUntil, currentProfile.banned_until)
         : null;
     const nextLimitHourly = parseLimitValue(body.limitHourly, currentProfile.limit_hourly);
     const nextLimitDaily = parseLimitValue(body.limitDaily, currentProfile.limit_daily);

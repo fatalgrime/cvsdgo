@@ -2,7 +2,6 @@ import { ensureAuditSchema, getRequestContext, logAuditEvent } from "@/lib/audit
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import {
   hasMeaningfulPolicyContent,
-  isPolicyDocumentKey,
   POLICY_DOCUMENTS,
   type PolicyDocumentKey,
   type PolicyDocumentDefinition,
