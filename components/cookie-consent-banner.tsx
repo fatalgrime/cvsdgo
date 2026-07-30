@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type ConsentChoice = "accepted" | "declined";
 
@@ -121,11 +121,6 @@ export function CookieConsentBanner() {
     setIsReady(true);
   }, []);
 
-  const categorySummary = useMemo(
-    () => CONSENT_CATEGORIES.map((category) => category.label).join(", "),
-    []
-  );
-
   function saveChoice(choice: ConsentChoice) {
     persistPreference(buildPreference(choice));
     setIsVisible(false);
@@ -137,36 +132,13 @@ export function CookieConsentBanner() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[160] px-4 pb-4 sm:px-6 sm:pb-6" role="region" aria-label="Cookie consent">
-      <div className="mx-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl shadow-slate-900/20 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 dark:shadow-black/40">
-        <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <div className="min-w-0">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-deepforest-700 dark:text-deepforest-400">Privacy Preferences</p>
-                <h2 className="mt-1 font-serif text-xl leading-tight text-oxford-700 dark:text-slate-100">Cookie consent</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => saveChoice("declined")}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
-                aria-label="Dismiss cookie consent banner"
-                title="Dismiss"
-              >
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18" />
-                  <path d="M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-              We use necessary cookies to keep CVSD Go secure and working. You can accept optional categories or decline them; your choice is saved for future visits.
-            </p>
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-500">
-              Categories: {categorySummary}. Declining keeps only necessary cookies enabled.
-            </p>
-          </div>
+      <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl shadow-slate-900/20 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 dark:shadow-black/40">
+        <div className="grid gap-4 p-4 sm:p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+          <p className="text-sm font-semibold leading-6 text-oxford-700 dark:text-slate-100">
+            We use necessary cookies to keep CVSD Go secure and working. Declining keeps only necessary cookies enabled.
+          </p>
 
-          <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               onClick={() => saveChoice("accepted")}
