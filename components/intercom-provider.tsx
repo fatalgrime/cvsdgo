@@ -51,16 +51,23 @@ export function IntercomProvider() {
               name,
               email,
               created_at: createdAt,
+              hide_default_launcher: false,
             });
           })
           .catch((e) => {
             console.error("Failed to initialize Intercom session:", e);
           });
+      } else {
+        // For anonymous visitors, boot Intercom but hide the launcher (banners/messages are still visible)
+        Intercom({
+          app_id: appId,
+          hide_default_launcher: true,
+        });
       }
 
       prevUserIdRef.current = currentUserId;
-    } else if (user) {
-      // Refresh messenger on URL/routing updates for logged-in user
+    } else {
+      // Refresh messenger on URL/routing updates
       try {
         update({});
       } catch (e) {
