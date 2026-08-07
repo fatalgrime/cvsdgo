@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.38.2",
+    "@intercom/messenger-js-sdk": "^0.0.20",
     "@neondatabase/serverless": "^0.10.4",
     "framer-motion": "^12.34.3",
     "next": "^15.5.12",

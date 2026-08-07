@@ -5,6 +5,7 @@ import Script from "next/script";
 import { ToastProvider } from "@/components/toast-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { SiteFooter } from "@/components/site-footer";
+import { IntercomProvider } from "@/components/intercom-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SiteFooter />
             </div>
             <CookieConsentBanner />
+            <IntercomProvider />
           </ToastProvider>
         </ClerkProvider>
       </body>
