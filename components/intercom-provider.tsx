@@ -33,28 +33,34 @@ export function IntercomProvider() {
       }
 
       if (user) {
-        // Extract authenticated session details
-        const email = user.emailAddresses[0]?.emailAddress || "";
-        const name = user.fullName || user.username || "";
-        const createdAt = user.createdAt ? Math.floor(new Date(user.createdAt).getTime() / 1000) : undefined;
+        // Retrieve the signed JWT for Intercom Identity Verification
+        fetch("/api/intercom-token")
+          .then((res) => {
+            if (!res.ok) throw new Error("Failed to fetch Intercom token");
+            return res.json();
+          })
+          .then(({ token }) => {
+            const email = user.emailAddresses[0]?.emailAddress || "";
+            const name = user.fullName || user.username || "";
+            const createdAt = user.createdAt ? Math.floor(new Date(user.createdAt).getTime() / 1000) : undefined;
 
-        Intercom({
-          app_id: appId,
-          user_id: user.id,
-          name,
-          email,
-          created_at: createdAt,
-        });
-      } else {
-        // Handle anonymous visitor session
-        Intercom({
-          app_id: appId,
-        });
+            Intercom({
+              app_id: appId,
+              intercom_user_jwt: token,
+              user_id: user.id,
+              name,
+              email,
+              created_at: createdAt,
+            });
+          })
+          .catch((e) => {
+            console.error("Failed to initialize Intercom session:", e);
+          });
       }
 
       prevUserIdRef.current = currentUserId;
-    } else {
-      // Refresh messenger on URL/routing updates
+    } else if (user) {
+      // Refresh messenger on URL/routing updates for logged-in user
       try {
         update({});
       } catch (e) {
