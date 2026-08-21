@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RedirectRow } from "@/lib/types";
+import { QrCodeDialog } from "@/components/qr-code-dialog";
 
 type LinkDashboardProps = {
   links: RedirectRow[];
@@ -172,6 +173,7 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
                           </svg>
                         )}
                       </button>
+                      <QrCodeDialog slug={link.slug} description={link.description ?? undefined} url={link.url} />
                     </div>
                   </article>
                 );

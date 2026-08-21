@@ -6,6 +6,7 @@ import { SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LinkFolderRow, RedirectRow } from "@/lib/types";
 import { useToast } from "@/components/toast-provider";
+import { QrCodeDialog } from "@/components/qr-code-dialog";
 
 const EMPTY_FORM = {
   id: null as number | null,
@@ -47,6 +48,20 @@ export default function LinkManagerPage() {
   const [movingLinkId, setMovingLinkId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<RedirectRow | null>(null);
   const [portalReady, setPortalReady] = useState(false);
+  const [qrRequests, setQrRequests] = useState<Array<{
+    id: number;
+    link_slug: string;
+    user_id: string;
+    user_email: string | null;
+    user_name: string | null;
+    status: "pending" | "accepted" | "declined";
+    admin_reason: string | null;
+    can_appeal: boolean;
+    created_at: string;
+  }>>([]);
+  const [declineReasonMap, setDeclineReasonMap] = useState<Record<number, string>>({});
+  const [declineAppealMap, setDeclineAppealMap] = useState<Record<number, boolean>>({});
+
   const { isSignedIn } = useAuth();
   const { toast } = useToast();
 
@@ -86,9 +101,10 @@ export default function LinkManagerPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [linksResponse, foldersResponse] = await Promise.all([
+      const [linksResponse, foldersResponse, qrResponse] = await Promise.all([
         fetch("/api/links"),
         fetch("/api/link-folders"),
+        fetch("/api/admin/qr-requests").catch(() => null),
       ]);
 
       if (!linksResponse.ok) {
@@ -101,6 +117,11 @@ export default function LinkManagerPage() {
       const [linksData, foldersData] = await Promise.all([linksResponse.json(), foldersResponse.json()]);
       setLinks(linksData.links ?? []);
       setFolders(foldersData.folders ?? []);
+
+      if (qrResponse && qrResponse.ok) {
+        const qrData = await qrResponse.json();
+        setQrRequests(qrData.requests ?? []);
+      }
     } catch (error) {
       const message = (error as Error).message || "Unable to load link manager data.";
       toast({ title: "Unable to load data", description: message, variant: "error" });
@@ -108,6 +129,40 @@ export default function LinkManagerPage() {
       setIsLoading(false);
     }
   }, [toast]);
+
+  async function handleReviewQrRequest(requestId: number, status: "accepted" | "declined") {
+    const adminReason = declineReasonMap[requestId] || "";
+    const canAppeal = declineAppealMap[requestId] !== false;
+
+    try {
+      const response = await fetch("/api/admin/qr-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, status, adminReason, canAppeal }),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      toast({
+        title: `Request ${status}`,
+        description: `QR Code download access request #${requestId} ${status}.`,
+        variant: "success",
+      });
+      setQrRequests((prev) =>
+        prev.map((r) =>
+          r.id === requestId
+            ? { ...r, status, admin_reason: adminReason || null, can_appeal: canAppeal }
+            : r
+        )
+      );
+    } catch (error) {
+      toast({
+        title: "Review error",
+        description: (error as Error).message || "Failed to update request status.",
+        variant: "error",
+      });
+    }
+  }
 
   useEffect(() => {
     if (isSignedIn) {
@@ -505,6 +560,7 @@ export default function LinkManagerPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
+                            <QrCodeDialog slug={link.slug} description={link.description ?? undefined} url={link.url} />
                             <button
                               type="button"
                               onClick={() => startEdit(link)}
@@ -594,6 +650,106 @@ export default function LinkManagerPage() {
                   </li>
                 )}
               </ul>
+            </div>
+
+            {/* QR Code Access Requests Management Panel */}
+            <div className="panel p-5 mt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-oxford-700 dark:text-slate-100">QR Code Access Requests</h2>
+                  <p className="text-xs text-slate-500">Review pending QR code download requests from users and visitors</p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  {qrRequests.filter((r) => r.status === "pending").length} Pending
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {qrRequests.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-xs text-slate-400 dark:border-slate-800">
+                    No download access requests submitted yet.
+                  </div>
+                ) : (
+                  qrRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="rounded-xl border border-slate-200 bg-white p-4 text-xs shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="font-mono font-bold text-oxford-700 dark:text-slate-100">
+                            go.cvsd.live/{req.link_slug}
+                          </span>
+                          <span className="ml-2 text-slate-500">
+                            by {req.user_name || req.user_email || req.user_id}
+                          </span>
+                        </div>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            req.status === "accepted"
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              : req.status === "declined"
+                              ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                          }`}
+                        >
+                          {req.status}
+                        </span>
+                      </div>
+
+                      {req.status === "pending" && (
+                        <div className="mt-3 space-y-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                          <input
+                            type="text"
+                            placeholder="Optional reason for decision (e.g. Requires staff verification)"
+                            value={declineReasonMap[req.id] || ""}
+                            onChange={(e) =>
+                              setDeclineReasonMap((prev) => ({ ...prev, [req.id]: e.target.value }))
+                            }
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                          />
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <label className="inline-flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                              <input
+                                type="checkbox"
+                                checked={declineAppealMap[req.id] !== false}
+                                onChange={(e) =>
+                                  setDeclineAppealMap((prev) => ({ ...prev, [req.id]: e.target.checked }))
+                                }
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-oxford-700"
+                              />
+                              Eligible for Vantor Trust & Safety appeal
+                            </label>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleReviewQrRequest(req.id, "accepted")}
+                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReviewQrRequest(req.id, "declined")}
+                                className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-500"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {req.status === "declined" && req.admin_reason && (
+                        <p className="mt-2 text-[11px] text-rose-700 dark:text-rose-400">
+                          <strong>Reason:</strong> {req.admin_reason}{" "}
+                          {req.can_appeal ? "(Eligible to appeal)" : "(Ineligible for appeal)"}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
