@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { getAccessProfile } from "@/lib/access";
 import { hasDatabaseUrl } from "@/lib/db";
-import { normalizeSlug } from "@/lib/normalize";
 import { verifyPassword } from "@/lib/password";
 import { getRedirectBySlug, recordClick } from "@/lib/redirects";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RedirectRow } from "@/lib/types";
 
@@ -11,8 +11,6 @@ type LinkDashboardProps = {
 
 export function LinkDashboard({ links }: LinkDashboardProps) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const deferredQuery = useDeferredValue(query);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [isDirectoryUpdated, setIsDirectoryUpdated] = useState(false);
 
@@ -48,27 +46,9 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
     };
   }, [router]);
 
-  const filteredLinks = useMemo(() => {
-    const normalizedQuery = deferredQuery.trim().toLowerCase();
-
-    if (!normalizedQuery) return links;
-
-    return links.filter((link) => {
-      const slug = `go/${link.slug}`.toLowerCase();
-      const description = (link.description ?? "").toLowerCase();
-      const url = link.url.toLowerCase();
-
-      return (
-        slug.includes(normalizedQuery) ||
-        description.includes(normalizedQuery) ||
-        url.includes(normalizedQuery)
-      );
-    });
-  }, [links, deferredQuery]);
-
   const groupedLinks = useMemo(() => {
     const groups = new Map<string, { title: string; links: RedirectRow[]; folderSortOrder?: number | null }>();
-    for (const link of filteredLinks) {
+    for (const link of links) {
       const key = link.folder_id ? `folder:${link.folder_id}` : "folder:none";
       if (!groups.has(key)) {
         groups.set(key, {
@@ -105,7 +85,7 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
         if (b.title.toLowerCase() === "general") return 1;
         return a.title.localeCompare(b.title);
       });
-  }, [filteredLinks]);
+  }, [links]);
 
   async function handleCopy(slug: string) {
     const shortLink = `https://go.cvsd.live/${slug}`;
@@ -119,16 +99,6 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
 
   return (
     <section className="w-full pb-6">
-      <div className="panel mb-5 p-3 md:p-4">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search shortcut, destination, or keyword..."
-          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-oxford-700 outline-none transition placeholder:text-slate-500 focus:border-oxford-700 focus:ring-2 focus:ring-[var(--ring-soft)] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:border-oxford-300"
-          aria-label="Search CVSD Go links"
-        />
-      </div>
-
       <div className="space-y-7">
         {groupedLinks.map((group) => (
           <section key={group.title}>
@@ -211,15 +181,10 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
         ))}
       </div>
 
-      {links.length === 0 ? (
+      {links.length === 0 && (
         <div className="panel mt-8 p-8 text-center">
           <p className="text-lg font-semibold text-oxford-700">No public links are available.</p>
           <p className="mt-2 text-sm text-slate-600">Check that links are assigned to public folders or have no folder selected.</p>
-        </div>
-      ) : filteredLinks.length === 0 && (
-        <div className="panel mt-8 p-8 text-center">
-          <p className="text-lg font-semibold text-oxford-700">No links matched your search.</p>
-          <p className="mt-2 text-sm text-slate-600">Try a different keyword.</p>
         </div>
       )}
 

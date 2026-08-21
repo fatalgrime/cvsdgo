@@ -6,9 +6,10 @@ import { isAllowedUser } from "@/lib/access";
 import { SidebarAuth } from "@/components/sidebar-auth";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandPaletteTrigger } from "@/components/command-palette-trigger";
+import { CommandPalette } from "@/components/command-palette";
 
 const SettingsDialog = dynamic(() => import("@/components/settings-dialog").then((mod) => mod.SettingsDialog));
-
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -27,21 +28,28 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <main className="min-h-screen">
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/80">
-        <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="logo-shell inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2 shadow-sm">
-            <Image
-              src="/cvsd-logo.png"
-              alt="Cedar Valley School District"
-              width={220}
-              height={52}
-              className="h-11 w-auto"
-              priority
-            />
-            <span className="ml-4 border-l border-slate-300 pl-4 text-base font-semibold uppercase tracking-[0.16em] text-oxford-700">
-              Go
-            </span>
-          </Link>
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="flex shrink-0 items-center">
+            <Link href="/" className="logo-shell inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2 shadow-sm">
+              <Image
+                src="/cvsd-logo.png"
+                alt="Cedar Valley School District"
+                width={220}
+                height={52}
+                className="h-11 w-auto"
+                priority
+              />
+              <span className="ml-4 border-l border-slate-300 pl-4 text-base font-semibold uppercase tracking-[0.16em] text-oxford-700">
+                Go
+              </span>
+            </Link>
+          </div>
+
+          <div className="flex flex-1 items-center justify-center max-w-md mx-2 sm:mx-4">
+            <CommandPaletteTrigger />
+          </div>
+
+          <div className="flex shrink-0 items-center gap-3">
             {isStaff && <SettingsDialog />}
             <ThemeToggle />
           </div>
@@ -59,6 +67,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
         <section className="pb-10">{children}</section>
       </div>
+      <CommandPalette />
     </main>
   );
 }
+
