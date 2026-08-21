@@ -7,9 +7,7 @@ import { SidebarAuth } from "@/components/sidebar-auth";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const SettingsDialog = dynamic(() => import("@/components/settings-dialog").then((mod) => mod.SettingsDialog), {
-  ssr: false,
-});
+const SettingsDialog = dynamic(() => import("@/components/settings-dialog").then((mod) => mod.SettingsDialog));
 
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
