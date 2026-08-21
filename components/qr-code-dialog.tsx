@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
 import { useToast } from "@/components/toast-provider";
+import { generateQrSvgDataUri } from "@/lib/qr-generator";
 
 type QrCodeDialogProps = {
   slug: string;
@@ -20,56 +21,6 @@ type RequestStatusPayload = {
   adminReason: string | null;
   canAppeal: boolean;
 };
-
-// Generate QR Code SVG matrix helper (standard 21x21 Model 1 / Model 2 matrix grid calculation for sharp vector rendering)
-function generateQrSvgDataUri(url: string, includeLogo: boolean): string {
-  const size = 300;
-  const targetUrl = url;
-
-  const modules: boolean[][] = Array.from({ length: 25 }, (_, r) =>
-    Array.from({ length: 25 }, (_, c) => {
-      // Position Detection Patterns (Top-Left, Top-Right, Bottom-Left)
-      if ((r < 7 && c < 7) || (r < 7 && c >= 18) || (r >= 18 && c < 7)) {
-        if (r === 0 || r === 6 || c === 0 || c === 6 || r === 18 || r === 24 || c === 18 || c === 24) return true;
-        if (r >= 2 && r <= 4 && c >= 2 && c <= 4) return true;
-        if (r >= 2 && r <= 4 && c >= 20 && c <= 22) return true;
-        if (r >= 20 && r <= 22 && c >= 2 && c <= 4) return true;
-        return false;
-      }
-      // Center logo mask exclusion area
-      if (includeLogo && r >= 9 && r <= 15 && c >= 9 && c <= 15) {
-        return false;
-      }
-      // Pseudo-random data module pattern derived from targetUrl hash
-      let hash = 0;
-      for (let i = 0; i < targetUrl.length; i++) {
-        hash = (hash * 31 + targetUrl.charCodeAt(i) + r * 7 + c * 13) % 1000000;
-      }
-      return hash % 3 === 0 || (r + c) % 5 === 0;
-    })
-  );
-
-  const moduleSize = size / 25;
-  let rects = "";
-  for (let r = 0; r < 25; r++) {
-    for (let c = 0; c < 25; c++) {
-      if (modules[r][c]) {
-        rects += `<rect x="${c * moduleSize}" y="${r * moduleSize}" width="${moduleSize + 0.1}" height="${moduleSize + 0.1}" fill="#0A192F" />`;
-      }
-    }
-  }
-
-  let logoSvg = "";
-  if (includeLogo) {
-    logoSvg = `
-      <rect x="${9 * moduleSize}" y="${9 * moduleSize}" width="${7 * moduleSize}" height="${7 * moduleSize}" fill="#FFFFFF" rx="8" />
-      <rect x="${9.5 * moduleSize}" y="${9.5 * moduleSize}" width="${6 * moduleSize}" height="${6 * moduleSize}" fill="#0A192F" rx="6" />
-      <text x="${12.5 * moduleSize}" y="${13.3 * moduleSize}" fill="#FFFFFF" font-family="sans-serif" font-weight="bold" font-size="${2.5 * moduleSize}" text-anchor="middle">GO</text>
-    `;
-  }
-
-  return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><rect width="${size}" height="${size}" fill="#FFFFFF"/>${rects}${logoSvg}</svg>`;
-}
 
 export function QrCodeDialog({ slug, url, description, triggerButton }: QrCodeDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
