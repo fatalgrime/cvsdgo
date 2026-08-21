@@ -25,13 +25,11 @@ export async function GET() {
 
     const email = user.emailAddresses[0]?.emailAddress || "";
 
-    // Construct the payload for Intercom Identity Verification
     const payload = {
       user_id: user.id,
       email: email,
     };
 
-    // Sign the token with the Intercom Messenger API Secret (using HS256)
     const token = jwt.sign(payload, secret, { algorithm: "HS256" });
 
     return NextResponse.json({ token });

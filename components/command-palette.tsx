@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { show as showIntercom } from "@intercom/messenger-js-sdk";
 import type { SearchResultsPayload, SearchPageItem, SearchLinkItem, SearchActionItem } from "@/app/api/search/route";
 
 type SelectableItem = SearchPageItem | SearchLinkItem | SearchActionItem;
@@ -29,7 +30,6 @@ export function CommandPalette() {
     setPortalReady(true);
   }, []);
 
-  // Global keybindings (Cmd+K / Ctrl+K) & Custom Event listener
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -51,7 +51,6 @@ export function CommandPalette() {
     };
   }, []);
 
-  // Focus search input on open
   useEffect(() => {
     if (isOpen) {
       setQuery("");
@@ -62,7 +61,6 @@ export function CommandPalette() {
     }
   }, [isOpen]);
 
-  // Fetch search results from permission-enforced API
   useEffect(() => {
     if (!isOpen) return;
 
@@ -92,7 +90,6 @@ export function CommandPalette() {
     return () => controller.abort();
   }, [deferredQuery, isOpen]);
 
-  // Flatten items for keyboard navigation
   const allItems: SelectableItem[] = [
     ...results.pages,
     ...results.links,
@@ -106,14 +103,21 @@ export function CommandPalette() {
     } else if (item.type === "link") {
       router.push(item.href);
     } else if (item.type === "action") {
-      if (item.actionId === "toggle-theme") {
+      if (item.actionId === "open-intercom") {
+        try {
+          showIntercom();
+        } catch {
+          if (typeof window !== "undefined" && (window as unknown as { Intercom?: (cmd: string) => void }).Intercom) {
+            (window as unknown as { Intercom: (cmd: string) => void }).Intercom("show");
+          }
+        }
+      } else if (item.actionId === "toggle-theme") {
         const currentTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
         const nextTheme = currentTheme === "dark" ? "light" : "dark";
         document.documentElement.classList.toggle("dark", nextTheme === "dark");
         document.documentElement.style.colorScheme = nextTheme;
         window.localStorage.setItem("cvsd-theme", nextTheme);
       } else if (item.actionId === "open-settings") {
-        // Dispatch settings dialog click or trigger
         const settingsButton = document.querySelector<HTMLButtonElement>("button[aria-label='Open site settings']");
         settingsButton?.click();
       }
@@ -406,7 +410,7 @@ export function CommandPalette() {
                         Select
                       </span>
                     </div>
-                    <span>CVSD Go Command Search</span>
+                    <span>CVSD Go Search v1.</span>
                   </div>
                 </motion.div>
               </motion.div>

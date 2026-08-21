@@ -22,10 +22,8 @@ export function IntercomProvider() {
     const currentUserId = user?.id || null;
 
     const initIntercom = () => {
-      // Check if user authentication session state has changed
       if (prevUserIdRef.current !== currentUserId) {
         if (prevUserIdRef.current !== undefined) {
-          // Shutdown previous session to clear old user data
           try {
             shutdown();
           } catch (e) {
@@ -34,7 +32,6 @@ export function IntercomProvider() {
         }
 
         if (user) {
-          // Retrieve the signed JWT for Intercom Identity Verification
           fetch("/api/intercom-token")
             .then((res) => {
               if (!res.ok) throw new Error("Failed to fetch Intercom token");
@@ -59,7 +56,6 @@ export function IntercomProvider() {
               console.error("Failed to initialize Intercom session:", e);
             });
         } else {
-          // For anonymous visitors, boot Intercom but hide the launcher (banners/messages are still visible)
           Intercom({
             app_id: appId,
             hide_default_launcher: true,
@@ -68,7 +64,6 @@ export function IntercomProvider() {
 
         prevUserIdRef.current = currentUserId;
       } else {
-        // Refresh messenger on URL/routing updates
         try {
           update({});
         } catch (e) {

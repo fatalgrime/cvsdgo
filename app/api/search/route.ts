@@ -25,7 +25,7 @@ export type SearchLinkItem = {
 export type SearchActionItem = {
   id: string;
   type: "action";
-  actionId: "toggle-theme" | "open-settings";
+  actionId: "toggle-theme" | "open-settings" | "open-intercom";
   title: string;
   description: string;
 };
@@ -44,7 +44,6 @@ export async function GET(request: Request): Promise<Response> {
   const { userId } = await auth();
   const profile = await getAccessProfile(userId);
 
-  // 1. Build role-authorized pages list
   const availablePages: SearchPageItem[] = [
     {
       id: "page-home",
@@ -80,7 +79,6 @@ export async function GET(request: Request): Promise<Response> {
     },
   ];
 
-  // Staff-level pages
   if (profile.canManageReports || profile.canManageLinks || profile.admin) {
     availablePages.push(
       {
@@ -110,7 +108,6 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
-  // Admin-only pages
   if (profile.admin) {
     availablePages.push({
       id: "page-users",
@@ -122,8 +119,14 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  // 2. Build role-authorized quick actions
   const availableActions: SearchActionItem[] = [
+    {
+      id: "action-intercom",
+      type: "action",
+      actionId: "open-intercom",
+      title: "Open Support Messenger",
+      description: "Chat with CVSD support & help center",
+    },
     {
       id: "action-theme",
       type: "action",
@@ -143,7 +146,6 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  // Filter pages and actions by query
   const filteredPages = query
     ? availablePages.filter(
         (p) =>
@@ -161,14 +163,12 @@ export async function GET(request: Request): Promise<Response> {
       )
     : availableActions;
 
-  // 3. Fetch public redirects and filter strictly
   const allRedirects = await getAllRedirects();
   const now = new Date();
 
   const filteredLinks: SearchLinkItem[] = [];
 
   for (const link of allRedirects) {
-    // Check release and expiration dates
     if (link.release_at && new Date(link.release_at) > now) continue;
     if (link.expires_at && new Date(link.expires_at) < now) continue;
 

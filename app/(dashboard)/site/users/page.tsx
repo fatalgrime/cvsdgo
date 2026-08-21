@@ -607,26 +607,21 @@ export default function UsersPage() {
   const { toast } = useToast();
   const { userId: currentUserId } = useAuth();
 
-  // --- data state ---
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
 
-  // --- toolbar state ---
   const [query, setQuery] = useState("");
   const [filterRole, setFilterRole] = useState<FilterRole>("all");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  // --- bulk selection ---
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // --- confirm dialog ---
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
-  // --- report modal ---
   const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<ReportingProfile>(initialReportingProfile);
   const [reportHistory, setReportHistory] = useState<ReportRow[]>([]);
