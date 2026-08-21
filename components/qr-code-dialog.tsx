@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
@@ -22,7 +22,7 @@ type RequestStatusPayload = {
   canAppeal: boolean;
 };
 
-export function QrCodeDialog({ slug, url, description, triggerButton }: QrCodeDialogProps) {
+export function QrCodeDialog({ slug, description, triggerButton }: QrCodeDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [includeLogo, setIncludeLogo] = useState(true);
   const [portalReady, setPortalReady] = useState(false);
@@ -39,7 +39,6 @@ export function QrCodeDialog({ slug, url, description, triggerButton }: QrCodeDi
 
   const { user } = useUser();
   const { toast } = useToast();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const shortLinkUrl = `https://go.cvsd.live/${slug}`;
 
