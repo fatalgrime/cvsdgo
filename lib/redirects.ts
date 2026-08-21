@@ -48,3 +48,45 @@ export async function getAllRedirects(): Promise<RedirectRow[]> {
   }
   return getAllRedirectsCached();
 }
+
+export type RedirectDestinationInfo = {
+  url: string;
+  is_locked: boolean;
+  password_hash: string | null;
+  release_at: string | Date | null;
+  expires_at: string | Date | null;
+};
+
+export async function getRedirectBySlug(rawSlug: string): Promise<RedirectDestinationInfo | null> {
+  if (!hasDatabaseUrl()) return null;
+  const slug = rawSlug.trim().toLowerCase();
+  if (!slug) return null;
+  const sql = getSql();
+  try {
+    const rows = (await sql`
+      SELECT url, is_locked, password_hash, release_at, expires_at
+      FROM redirects
+      WHERE slug = ${slug}
+      LIMIT 1;
+    `) as RedirectDestinationInfo[];
+    return rows[0] ?? null;
+  } catch (error) {
+    console.error("Error fetching redirect by slug:", error);
+    return null;
+  }
+}
+
+export function recordClick(rawSlug: string): void {
+  if (!hasDatabaseUrl()) return;
+  const slug = rawSlug.trim().toLowerCase();
+  if (!slug) return;
+  const sql = getSql();
+  sql`
+    UPDATE redirects
+    SET click_count = COALESCE(click_count, 0) + 1
+    WHERE slug = ${slug};
+  `.catch((err) => {
+    console.error("Failed to record click for slug:", slug, err);
+  });
+}
+

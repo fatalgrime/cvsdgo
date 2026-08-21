@@ -148,6 +148,17 @@ async function runEnsureAuditSchema(): Promise<void> {
 
   const sql = getSql();
 
+  try {
+    const check = (await sql`
+      SELECT 1 FROM information_schema.tables WHERE table_name = 'audit_logs' LIMIT 1;
+    `) as unknown[];
+
+    if (check.length > 0) {
+      return;
+    }
+  } catch {
+  }
+
   await sql`
     CREATE TABLE IF NOT EXISTS site_settings (
       setting_key TEXT PRIMARY KEY,
@@ -173,16 +184,6 @@ async function runEnsureAuditSchema(): Promise<void> {
       source TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-  `;
-
-  await sql`
-    ALTER TABLE audit_logs
-    ADD COLUMN IF NOT EXISTS actor_ip_address TEXT,
-    ADD COLUMN IF NOT EXISTS actor_user_agent TEXT,
-    ADD COLUMN IF NOT EXISTS metadata JSONB,
-    ADD COLUMN IF NOT EXISTS severity TEXT DEFAULT 'info',
-    ADD COLUMN IF NOT EXISTS category TEXT,
-    ADD COLUMN IF NOT EXISTS source TEXT;
   `;
 
   await sql`

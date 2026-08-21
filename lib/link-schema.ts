@@ -7,11 +7,23 @@ async function runEnsureLinkSchema(): Promise<void> {
 
   const sql = getSql();
 
+  try {
+    const check = (await sql`
+      SELECT 1 FROM information_schema.tables WHERE table_name = 'link_folders' LIMIT 1;
+    `) as unknown[];
+
+    if (check.length > 0) {
+      return;
+    }
+  } catch {
+  }
+
   await sql`
     CREATE TABLE IF NOT EXISTS link_folders (
       id BIGSERIAL PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
       is_public BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -20,26 +32,6 @@ async function runEnsureLinkSchema(): Promise<void> {
   await sql`
     ALTER TABLE redirects
     ADD COLUMN IF NOT EXISTS folder_id BIGINT REFERENCES link_folders(id) ON DELETE SET NULL;
-  `;
-
-  await sql`
-    ALTER TABLE link_folders
-    ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
-  `;
-
-  await sql`
-    WITH ordered AS (
-      SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) - 1 AS rank
-      FROM link_folders
-    )
-    UPDATE link_folders
-    SET sort_order = ordered.rank
-    FROM ordered
-    WHERE link_folders.id = ordered.id
-      AND link_folders.sort_order = 0
-      AND NOT EXISTS (
-        SELECT 1 FROM link_folders WHERE sort_order != 0
-      );
   `;
 
   await sql`

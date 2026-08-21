@@ -1,16 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { getAccessProfile } from "@/lib/access";
-import { getSql, hasDatabaseUrl } from "@/lib/db";
+import { hasDatabaseUrl } from "@/lib/db";
 import { normalizeSlug } from "@/lib/normalize";
 import { verifyPassword } from "@/lib/password";
-
-type RedirectDestinationRow = {
-  url: string;
-  is_locked: boolean;
-  password_hash: string | null;
-  release_at: string | Date | null;
-  expires_at: string | Date | null;
-};
+import { getRedirectBySlug, recordClick } from "@/lib/redirects";
 
 function parseStoredDate(value: string | Date | null): Date | null {
   if (!value) return null;
@@ -37,21 +30,16 @@ export async function GET(
   }
 
   const { slug: rawSlug } = await params;
-  const slug = normalizeSlug(rawSlug);
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT url, is_locked, release_at, expires_at
-    FROM redirects
-    WHERE slug = ${slug};
-  `) as RedirectDestinationRow[];
+  const destination = await getRedirectBySlug(rawSlug);
 
-  if (rows.length === 0) {
+  if (!destination) {
     return Response.json({ destinationUrl: null }, { status: 404 });
   }
 
   const now = new Date();
-  const releaseAt = parseStoredDate(rows[0].release_at);
-  const expiresAt = parseStoredDate(rows[0].expires_at);
+  const releaseAt = parseStoredDate(destination.release_at);
+  const expiresAt = parseStoredDate(destination.expires_at);
+
   if (releaseAt && now < releaseAt) {
     return Response.json({ destinationUrl: null, inactive: true, reason: "scheduled" }, { status: 404 });
   }
@@ -59,19 +47,14 @@ export async function GET(
     return Response.json({ destinationUrl: null, inactive: true, reason: "expired" }, { status: 404 });
   }
 
-  const canOverride = await getCanOverrideForUser();
-
-  if (rows[0].is_locked) {
+  if (destination.is_locked) {
+    const canOverride = await getCanOverrideForUser();
     return Response.json({ destinationUrl: null, locked: true, canOverride });
   }
 
-  await sql`
-    UPDATE redirects
-    SET click_count = COALESCE(click_count, 0) + 1
-    WHERE slug = ${slug};
-  `;
+  recordClick(rawSlug);
 
-  return Response.json({ destinationUrl: rows[0].url, locked: false });
+  return Response.json({ destinationUrl: destination.url, locked: false });
 }
 
 export async function POST(
@@ -83,7 +66,12 @@ export async function POST(
   }
 
   const { slug: rawSlug } = await params;
-  const slug = normalizeSlug(rawSlug);
+  const destination = await getRedirectBySlug(rawSlug);
+
+  if (!destination || !destination.is_locked) {
+    return Response.json({ destinationUrl: null }, { status: 404 });
+  }
+
   const body = (await request.json().catch(() => null)) as { password?: unknown; override?: unknown } | null;
   if (!body) {
     return new Response("Invalid request", { status: 400 });
@@ -92,20 +80,9 @@ export async function POST(
   const password = String(body.password ?? "");
   const requestedOverride = body.override === true || body.override === "true";
 
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT url, password_hash, release_at, expires_at
-    FROM redirects
-    WHERE slug = ${slug} AND is_locked = true;
-  `) as RedirectDestinationRow[];
-
-  if (rows.length === 0) {
-    return Response.json({ destinationUrl: null }, { status: 404 });
-  }
-
   const now = new Date();
-  const releaseAt = parseStoredDate(rows[0].release_at);
-  const expiresAt = parseStoredDate(rows[0].expires_at);
+  const releaseAt = parseStoredDate(destination.release_at);
+  const expiresAt = parseStoredDate(destination.expires_at);
   if (releaseAt && now < releaseAt) {
     return Response.json({ destinationUrl: null, inactive: true, reason: "scheduled" }, { status: 404 });
   }
@@ -113,23 +90,20 @@ export async function POST(
     return Response.json({ destinationUrl: null, inactive: true, reason: "expired" }, { status: 404 });
   }
 
-  const canOverride = await getCanOverrideForUser();
   if (requestedOverride) {
+    const canOverride = await getCanOverrideForUser();
     if (!canOverride) {
       return new Response("Forbidden", { status: 403 });
     }
   } else {
-    const isValid = verifyPassword(password, rows[0].password_hash);
+    const isValid = verifyPassword(password, destination.password_hash);
     if (!isValid) {
       return new Response("Invalid password", { status: 401 });
     }
   }
 
-  await sql`
-    UPDATE redirects
-    SET click_count = COALESCE(click_count, 0) + 1
-    WHERE slug = ${slug};
-  `;
+  recordClick(rawSlug);
 
-  return Response.json({ destinationUrl: rows[0].url, locked: false });
+  return Response.json({ destinationUrl: destination.url, locked: false });
 }
+

@@ -1,3 +1,4 @@
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
@@ -5,7 +6,11 @@ import { isAllowedUser } from "@/lib/access";
 import { SidebarAuth } from "@/components/sidebar-auth";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SettingsDialog } from "@/components/settings-dialog";
+
+const SettingsDialog = dynamic(() => import("@/components/settings-dialog").then((mod) => mod.SettingsDialog), {
+  ssr: false,
+});
+
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
