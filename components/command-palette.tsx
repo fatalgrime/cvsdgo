@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { show as showIntercom } from "@intercom/messenger-js-sdk";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type {
   SearchResultsPayload,
   SearchPageItem,
@@ -1074,8 +1076,8 @@ export function CommandPalette() {
                               >
                                 <div
                                   className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${msg.sender === "user"
-                                      ? "bg-oxford-700 text-white shadow-sm dark:bg-oxford-600"
-                                      : "border border-indigo-200/80 bg-indigo-50/40 text-slate-800 shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-slate-100"
+                                    ? "bg-oxford-700 text-white shadow-sm dark:bg-oxford-600"
+                                    : "border border-indigo-200/80 bg-indigo-50/40 text-slate-800 shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-slate-100"
                                     }`}
                                 >
                                   {msg.sender === "ai" && (
@@ -1086,7 +1088,36 @@ export function CommandPalette() {
                                       CVSD Go AI
                                     </div>
                                   )}
-                                  <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>
+                                  <div className="leading-relaxed">
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkGfm]}
+                                      components={{
+                                        p: ({ children }) => <p className="leading-relaxed my-1 first:mt-0 last:mb-0">{children}</p>,
+                                        strong: ({ children }) => <strong className="font-bold text-indigo-700 dark:text-indigo-300">{children}</strong>,
+                                        em: ({ children }) => <em className="italic">{children}</em>,
+                                        code: ({ children }) => (
+                                          <code className="rounded bg-indigo-100/80 px-1.5 py-0.5 font-mono text-[0.85em] font-semibold text-indigo-900 dark:bg-indigo-950/80 dark:text-indigo-200 border border-indigo-200/60 dark:border-indigo-800/60">
+                                            {children}
+                                          </code>
+                                        ),
+                                        ul: ({ children }) => <ul className="ml-4 list-disc space-y-1 my-1">{children}</ul>,
+                                        ol: ({ children }) => <ol className="ml-4 list-decimal space-y-1 my-1">{children}</ol>,
+                                        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                        a: ({ href, children }) => (
+                                          <a
+                                            href={href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="font-semibold underline text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200"
+                                          >
+                                            {children}
+                                          </a>
+                                        ),
+                                      }}
+                                    >
+                                      {msg.text}
+                                    </ReactMarkdown>
+                                  </div>
                                 </div>
                               </motion.div>
                             ))}
@@ -1223,8 +1254,8 @@ export function CommandPalette() {
                                 initial={{ opacity: 0, scale: 0.97 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 className={`rounded-2xl border p-4 shadow-sm ${aiMode === "delete-link"
-                                    ? "border-rose-300 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/30"
-                                    : "border-indigo-300/80 bg-indigo-50/50 dark:border-indigo-900/60 dark:bg-indigo-950/30"
+                                  ? "border-rose-300 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/30"
+                                  : "border-indigo-300/80 bg-indigo-50/50 dark:border-indigo-900/60 dark:bg-indigo-950/30"
                                   }`}
                               >
                                 <div className="flex items-center justify-between border-b pb-2 dark:border-slate-800">
@@ -1290,8 +1321,8 @@ export function CommandPalette() {
                                     type="button"
                                     onClick={() => void executeAdminAction()}
                                     className={`rounded-xl px-4 py-1.5 text-xs font-bold text-white shadow-md transition ${aiMode === "delete-link"
-                                        ? "bg-rose-600 hover:bg-rose-700"
-                                        : "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-indigo-500/20"
+                                      ? "bg-rose-600 hover:bg-rose-700"
+                                      : "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-indigo-500/20"
                                       }`}
                                   >
                                     {aiMode === "delete-link" ? "Confirm Delete" : "Confirm & Execute"}
@@ -1405,15 +1436,15 @@ export function CommandPalette() {
                                     onClick={() => handleSelect(aiAction)}
                                     onMouseEnter={() => setSelectedIndex(itemIndex)}
                                     className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${isSelected
-                                        ? "bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 text-white shadow-md shadow-indigo-500/25"
-                                        : "bg-indigo-50/50 text-slate-900 hover:bg-indigo-100/70 dark:bg-indigo-950/20 dark:text-slate-100 dark:hover:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/40"
+                                      ? "bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 text-white shadow-md shadow-indigo-500/25"
+                                      : "bg-indigo-50/50 text-slate-900 hover:bg-indigo-100/70 dark:bg-indigo-950/20 dark:text-slate-100 dark:hover:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/40"
                                       }`}
                                   >
                                     <div className="flex items-center gap-3">
                                       <div
                                         className={`p-2 rounded-lg ${isSelected
-                                            ? "bg-white/20 text-white"
-                                            : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300"
+                                          ? "bg-white/20 text-white"
+                                          : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300"
                                           }`}
                                       >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1439,8 +1470,8 @@ export function CommandPalette() {
                                     </div>
                                     <span
                                       className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${isSelected
-                                          ? "border-indigo-400/40 bg-indigo-950/40 text-indigo-100"
-                                          : "border-indigo-200/80 bg-indigo-100/70 text-indigo-800 dark:border-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
+                                        ? "border-indigo-400/40 bg-indigo-950/40 text-indigo-100"
+                                        : "border-indigo-200/80 bg-indigo-100/70 text-indigo-800 dark:border-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
                                         }`}
                                     >
                                       AI Workflow
@@ -1468,8 +1499,8 @@ export function CommandPalette() {
                                     onClick={() => handleSelect(page)}
                                     onMouseEnter={() => setSelectedIndex(itemIndex)}
                                     className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${isSelected
-                                        ? "bg-oxford-700 text-white dark:bg-oxford-600"
-                                        : "text-oxford-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
+                                      ? "bg-oxford-700 text-white dark:bg-oxford-600"
+                                      : "text-oxford-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
                                       }`}
                                   >
                                     <div>
@@ -1483,8 +1514,8 @@ export function CommandPalette() {
                                     </div>
                                     <span
                                       className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${isSelected
-                                          ? "border-oxford-500 bg-oxford-800 text-slate-200"
-                                          : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+                                        ? "border-oxford-500 bg-oxford-800 text-slate-200"
+                                        : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
                                         }`}
                                     >
                                       {page.category}
@@ -1512,8 +1543,8 @@ export function CommandPalette() {
                                     onClick={() => handleSelect(link)}
                                     onMouseEnter={() => setSelectedIndex(itemIndex)}
                                     className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${isSelected
-                                        ? "bg-oxford-700 text-white dark:bg-oxford-600"
-                                        : "text-oxford-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
+                                      ? "bg-oxford-700 text-white dark:bg-oxford-600"
+                                      : "text-oxford-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
                                       }`}
                                   >
                                     <div className="min-w-0 pr-3">
@@ -1527,8 +1558,8 @@ export function CommandPalette() {
                                         {link.isLocked && (
                                           <span
                                             className={`rounded-full border px-1.5 py-0.2 text-[9px] font-semibold uppercase ${isSelected
-                                                ? "border-amber-400/40 bg-amber-950/40 text-amber-200"
-                                                : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                                              ? "border-amber-400/40 bg-amber-950/40 text-amber-200"
+                                              : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
                                               }`}
                                           >
                                             Locked
@@ -1547,8 +1578,8 @@ export function CommandPalette() {
                                         type="button"
                                         onClick={(e) => void handleCopyLink(link.slug, e)}
                                         className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${isSelected
-                                            ? "border-oxford-500 bg-oxford-800 text-white hover:bg-oxford-900"
-                                            : "border-slate-200 bg-white text-oxford-700 hover:border-oxford-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                          ? "border-oxford-500 bg-oxford-800 text-white hover:bg-oxford-900"
+                                          : "border-slate-200 bg-white text-oxford-700 hover:border-oxford-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                                           }`}
                                         title="Copy short link"
                                       >
@@ -1578,8 +1609,8 @@ export function CommandPalette() {
                                     onClick={() => handleSelect(action)}
                                     onMouseEnter={() => setSelectedIndex(itemIndex)}
                                     className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${isSelected
-                                        ? "bg-oxford-700 text-white dark:bg-oxford-600"
-                                        : "text-oxford-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
+                                      ? "bg-oxford-700 text-white dark:bg-oxford-600"
+                                      : "text-oxford-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
                                       }`}
                                   >
                                     <div>
@@ -1593,8 +1624,8 @@ export function CommandPalette() {
                                     </div>
                                     <span
                                       className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${isSelected
-                                          ? "border-oxford-500 bg-oxford-800 text-slate-200"
-                                          : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+                                        ? "border-oxford-500 bg-oxford-800 text-slate-200"
+                                        : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
                                         }`}
                                     >
                                       Action
