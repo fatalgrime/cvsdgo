@@ -981,7 +981,7 @@ export function CommandPalette() {
                   <div className="relative border-b border-slate-200 px-4 py-3.5 dark:border-slate-800">
                     {aiMode ? (
                       <div className="flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-tr from-amber-500 to-amber-600 text-white shadow-sm">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-tr from-indigo-500 via-violet-600 to-purple-600 text-white shadow-md shadow-indigo-500/30">
                           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
@@ -1006,7 +1006,7 @@ export function CommandPalette() {
                           onClick={exitAiWorkflow}
                           className="absolute right-4 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
                         >
-                          ESC Exit AI
+                          ESC
                         </button>
                       </div>
                     ) : (
@@ -1028,7 +1028,11 @@ export function CommandPalette() {
                           ref={inputRef}
                           value={query}
                           onChange={(e) => setQuery(e.target.value)}
-                          placeholder="Search links, pages, or type an AI admin action like 'create a link'..."
+                          placeholder={
+                            results.canManageLinks || results.isAdmin
+                              ? "Search links, pages, or type an AI admin action like 'create a link'..."
+                              : "Search links, pages, or system actions..."
+                          }
                           className="w-full bg-transparent pl-8 pr-12 text-base text-oxford-700 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"
                           aria-label="Command palette input"
                         />
@@ -1046,10 +1050,10 @@ export function CommandPalette() {
                       <div className="space-y-4 py-1">
                         {/* Generating State Banner */}
                         {aiState === "generating" && (
-                          <div className="flex items-center justify-center gap-3 py-10 text-amber-600 dark:text-amber-400">
+                          <div className="flex items-center justify-center gap-3 py-10 text-indigo-600 dark:text-indigo-400">
                             <span className="relative flex h-3 w-3">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
                             </span>
                             <span className="text-sm font-semibold tracking-wide animate-pulse">
                               Generating AI Admin Workflow...
@@ -1071,11 +1075,11 @@ export function CommandPalette() {
                                 <div
                                   className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${msg.sender === "user"
                                       ? "bg-oxford-700 text-white shadow-sm dark:bg-oxford-600"
-                                      : "border border-amber-200/60 bg-amber-50/50 text-slate-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-slate-200"
+                                      : "border border-indigo-200/80 bg-indigo-50/40 text-slate-800 shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-slate-100"
                                     }`}
                                 >
                                   {msg.sender === "ai" && (
-                                    <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                                    <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                       </svg>
@@ -1099,7 +1103,7 @@ export function CommandPalette() {
                                         key={f.id}
                                         type="button"
                                         onClick={() => handleAiStepSubmit(f.name)}
-                                        className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-amber-400 hover:bg-amber-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-amber-700"
+                                        className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-indigo-400 hover:bg-indigo-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40"
                                       >
                                         {f.name}
                                       </button>
@@ -1107,7 +1111,7 @@ export function CommandPalette() {
                                     <button
                                       type="button"
                                       onClick={() => handleAiStepSubmit("General")}
-                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-amber-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-indigo-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                                     >
                                       General
                                     </button>
@@ -1119,7 +1123,7 @@ export function CommandPalette() {
                                     <button
                                       type="button"
                                       onClick={() => handleAiStepSubmit("Skip")}
-                                      className="rounded-lg border border-amber-300 bg-amber-50/70 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                                      className="rounded-lg border border-indigo-300/80 bg-indigo-50/80 px-3 py-1 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
                                     >
                                       Skip / None
                                     </button>
@@ -1131,14 +1135,14 @@ export function CommandPalette() {
                                     <button
                                       type="button"
                                       onClick={() => handleAiStepSubmit("No")}
-                                      className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-amber-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                      className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-indigo-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                                     >
                                       No Password
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleAiStepSubmit("Yes")}
-                                      className="rounded-lg border border-amber-400 bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-600"
+                                      className="rounded-lg border border-indigo-500 bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-indigo-500/20 hover:from-indigo-500 hover:to-violet-500"
                                     >
                                       Require Password Lock
                                     </button>
@@ -1156,9 +1160,9 @@ export function CommandPalette() {
                                             key={l.id}
                                             type="button"
                                             onClick={() => handleAiStepSubmit(l.slug)}
-                                            className="w-full text-left flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-1.5 text-xs hover:border-amber-400 hover:bg-amber-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-700"
+                                            className="w-full text-left flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-1.5 text-xs hover:border-indigo-400 hover:bg-indigo-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40"
                                           >
-                                            <span className="font-mono font-bold text-amber-700 dark:text-amber-400">
+                                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
                                               /{l.slug}
                                             </span>
                                             <span className="truncate text-slate-500 max-w-[200px]">
@@ -1176,28 +1180,28 @@ export function CommandPalette() {
                                     <button
                                       type="button"
                                       onClick={() => handleAiStepSubmit("Destination URL")}
-                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-amber-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-indigo-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                                     >
                                       Destination URL
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleAiStepSubmit("Title / Description")}
-                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-amber-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-indigo-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                                     >
                                       Title / Description
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleAiStepSubmit("Folder")}
-                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-amber-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-indigo-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                                     >
                                       Folder
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleAiStepSubmit("Password")}
-                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-amber-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-oxford-700 hover:border-indigo-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                                     >
                                       Password Lock
                                     </button>
@@ -1220,14 +1224,14 @@ export function CommandPalette() {
                                 animate={{ opacity: 1, scale: 1 }}
                                 className={`rounded-2xl border p-4 shadow-sm ${aiMode === "delete-link"
                                     ? "border-rose-300 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/30"
-                                    : "border-amber-300/80 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/30"
+                                    : "border-indigo-300/80 bg-indigo-50/50 dark:border-indigo-900/60 dark:bg-indigo-950/30"
                                   }`}
                               >
                                 <div className="flex items-center justify-between border-b pb-2 dark:border-slate-800">
                                   <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                                     {aiMode === "delete-link" ? "⚠️ Destructive Confirmation Required" : "📋 Action Confirmation Summary"}
                                   </span>
-                                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-200/60 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">
+                                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300">
                                     {aiMode}
                                   </span>
                                 </div>
@@ -1235,7 +1239,7 @@ export function CommandPalette() {
                                 <div className="mt-3 space-y-2 text-xs">
                                   {aiMode === "create-link" && (
                                     <>
-                                      <div className="flex justify-between"><span className="text-slate-500">Short Link Slug:</span><span className="font-mono font-bold text-amber-700 dark:text-amber-400">go.cvsd.live/{createData.slug}</span></div>
+                                      <div className="flex justify-between"><span className="text-slate-500">Short Link Slug:</span><span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">go.cvsd.live/{createData.slug}</span></div>
                                       <div className="flex justify-between"><span className="text-slate-500">Destination URL:</span><span className="font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[260px]">{createData.url}</span></div>
                                       <div className="flex justify-between"><span className="text-slate-500">Title:</span><span className="font-medium text-slate-700 dark:text-slate-200">{createData.title}</span></div>
                                       <div className="flex justify-between"><span className="text-slate-500">Folder:</span><span className="font-medium text-slate-700 dark:text-slate-200">{createData.folderName}</span></div>
@@ -1247,7 +1251,7 @@ export function CommandPalette() {
 
                                   {aiMode === "update-link" && (
                                     <>
-                                      <div className="flex justify-between"><span className="text-slate-500">Target Slug:</span><span className="font-mono font-bold text-amber-700 dark:text-amber-400">go.cvsd.live/{updateData.slug}</span></div>
+                                      <div className="flex justify-between"><span className="text-slate-500">Target Slug:</span><span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">go.cvsd.live/{updateData.slug}</span></div>
                                       <div className="flex justify-between"><span className="text-slate-500">Updated Field:</span><span className="font-semibold uppercase text-slate-700 dark:text-slate-200">{updateData.fieldToUpdate}</span></div>
                                     </>
                                   )}
@@ -1261,7 +1265,7 @@ export function CommandPalette() {
 
                                   {aiMode === "move-link" && (
                                     <>
-                                      <div className="flex justify-between"><span className="text-slate-500">Link:</span><span className="font-mono font-bold text-amber-700 dark:text-amber-400">go.cvsd.live/{moveData.slug}</span></div>
+                                      <div className="flex justify-between"><span className="text-slate-500">Link:</span><span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">go.cvsd.live/{moveData.slug}</span></div>
                                       <div className="flex justify-between"><span className="text-slate-500">Target Folder:</span><span className="font-semibold text-slate-700 dark:text-slate-200">{moveData.targetFolderName}</span></div>
                                     </>
                                   )}
@@ -1287,7 +1291,7 @@ export function CommandPalette() {
                                     onClick={() => void executeAdminAction()}
                                     className={`rounded-xl px-4 py-1.5 text-xs font-bold text-white shadow-md transition ${aiMode === "delete-link"
                                         ? "bg-rose-600 hover:bg-rose-700"
-                                        : "bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600"
+                                        : "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-indigo-500/20"
                                       }`}
                                   >
                                     {aiMode === "delete-link" ? "Confirm Delete" : "Confirm & Execute"}
@@ -1298,8 +1302,8 @@ export function CommandPalette() {
 
                             {/* Executing State Loading Shimmer */}
                             {aiState === "executing" && (
-                              <div className="p-6 text-center text-sm font-semibold text-amber-600 dark:text-amber-400 flex items-center justify-center gap-2">
-                                <svg className="animate-spin h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24">
+                              <div className="p-6 text-center text-sm font-semibold text-indigo-600 dark:text-indigo-400 flex items-center justify-center gap-2">
+                                <svg className="animate-spin h-5 w-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
@@ -1375,7 +1379,9 @@ export function CommandPalette() {
                           <div className="p-8 text-center">
                             <p className="text-sm font-semibold text-oxford-700 dark:text-slate-200">No results found</p>
                             <p className="mt-1 text-xs text-slate-500">
-                              Try searching for a link keyword like &quot;enroll&quot;, &quot;calendar&quot;, or an AI action like &quot;create a link&quot;.
+                              {results.canManageLinks || results.isAdmin
+                                ? 'Try searching for a link keyword like "roblox", "discord", or an AI action like "create a link".'
+                                : 'Try searching for a link keyword like "roblox", "discord", or a site page.'}
                             </p>
                           </div>
                         )}
@@ -1383,9 +1389,9 @@ export function CommandPalette() {
                         {/* Section 0: AI Admin Actions */}
                         {!isLoading && results.aiAdminActions && results.aiAdminActions.length > 0 && (
                           <div className="mb-2">
-                            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                               </svg>
                               AI Admin Actions
                             </p>
@@ -1399,15 +1405,15 @@ export function CommandPalette() {
                                     onClick={() => handleSelect(aiAction)}
                                     onMouseEnter={() => setSelectedIndex(itemIndex)}
                                     className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${isSelected
-                                        ? "bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-md"
-                                        : "bg-amber-50/50 text-amber-900 hover:bg-amber-100/80 dark:bg-amber-950/20 dark:text-amber-200 dark:hover:bg-amber-950/40 border border-amber-200/50 dark:border-amber-900/40"
+                                        ? "bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 text-white shadow-md shadow-indigo-500/25"
+                                        : "bg-indigo-50/50 text-slate-900 hover:bg-indigo-100/70 dark:bg-indigo-950/20 dark:text-slate-100 dark:hover:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/40"
                                       }`}
                                   >
                                     <div className="flex items-center gap-3">
                                       <div
                                         className={`p-2 rounded-lg ${isSelected
                                             ? "bg-white/20 text-white"
-                                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300"
+                                            : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300"
                                           }`}
                                       >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1424,7 +1430,7 @@ export function CommandPalette() {
                                           )}
                                         </p>
                                         <p
-                                          className={`text-xs ${isSelected ? "text-amber-100" : "text-slate-500 dark:text-slate-400"
+                                          className={`text-xs ${isSelected ? "text-indigo-100" : "text-slate-500 dark:text-slate-400"
                                             }`}
                                         >
                                           {aiAction.description}
@@ -1433,8 +1439,8 @@ export function CommandPalette() {
                                     </div>
                                     <span
                                       className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${isSelected
-                                          ? "border-amber-400/40 bg-amber-950/40 text-amber-100"
-                                          : "border-amber-300 bg-amber-100/60 text-amber-800 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                                          ? "border-indigo-400/40 bg-indigo-950/40 text-indigo-100"
+                                          : "border-indigo-200/80 bg-indigo-100/70 text-indigo-800 dark:border-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
                                         }`}
                                     >
                                       AI Workflow
