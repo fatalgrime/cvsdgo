@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { getAccessProfile } from "@/lib/access";
 import { getAllRedirects } from "@/lib/redirects";
 
+import { ADMIN_ACTION_DEFINITIONS, type AdminActionType } from "@/lib/ai-admin-actions";
+
 export type SearchPageItem = {
   id: string;
   type: "page";
@@ -30,11 +32,23 @@ export type SearchActionItem = {
   description: string;
 };
 
+export type SearchAdminActionItem = {
+  id: string;
+  type: "ai-admin-action";
+  actionType: AdminActionType;
+  title: string;
+  description: string;
+  isDestructive?: boolean;
+};
+
 export type SearchResultsPayload = {
   query: string;
   pages: SearchPageItem[];
   links: SearchLinkItem[];
   actions: SearchActionItem[];
+  aiAdminActions: SearchAdminActionItem[];
+  canManageLinks: boolean;
+  isAdmin: boolean;
 };
 
 export async function GET(request: Request): Promise<Response> {
@@ -151,19 +165,19 @@ export async function GET(request: Request): Promise<Response> {
 
   const filteredPages = query
     ? availablePages.filter(
-        (p) =>
-          p.title.toLowerCase().includes(query) ||
-          p.description.toLowerCase().includes(query) ||
-          p.href.toLowerCase().includes(query)
-      )
+      (p) =>
+        p.title.toLowerCase().includes(query) ||
+        p.description.toLowerCase().includes(query) ||
+        p.href.toLowerCase().includes(query)
+    )
     : availablePages;
 
   const filteredActions = query
     ? availableActions.filter(
-        (a) =>
-          a.title.toLowerCase().includes(query) ||
-          a.description.toLowerCase().includes(query)
-      )
+      (a) =>
+        a.title.toLowerCase().includes(query) ||
+        a.description.toLowerCase().includes(query)
+    )
     : availableActions;
 
   const allRedirects = await getAllRedirects();
@@ -203,11 +217,38 @@ export async function GET(request: Request): Promise<Response> {
     if (filteredLinks.length >= 25) break;
   }
 
+  const aiAdminActions: SearchAdminActionItem[] = [];
+  const canManage = Boolean(profile.canManageLinks || profile.admin);
+
+  if (canManage) {
+    for (const def of ADMIN_ACTION_DEFINITIONS) {
+      const matches =
+        !query ||
+        def.title.toLowerCase().includes(query) ||
+        def.description.toLowerCase().includes(query) ||
+        def.triggers.some((tr) => tr.includes(query) || query.includes(tr));
+
+      if (matches) {
+        aiAdminActions.push({
+          id: `ai-action-${def.type}`,
+          type: "ai-admin-action",
+          actionType: def.type,
+          title: def.title,
+          description: def.description,
+          isDestructive: def.isDestructive,
+        });
+      }
+    }
+  }
+
   const payload: SearchResultsPayload = {
     query,
     pages: filteredPages.slice(0, 10),
     links: filteredLinks,
     actions: filteredActions.slice(0, 5),
+    aiAdminActions,
+    canManageLinks: canManage,
+    isAdmin: Boolean(profile.admin),
   };
 
   return Response.json(payload);
