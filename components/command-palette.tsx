@@ -13,7 +13,6 @@ import type {
   SearchAdminActionItem,
 } from "@/app/api/search/route";
 import {
-  ADMIN_ACTION_DEFINITIONS,
   detectAdminActionIntent,
   type AdminActionType,
 } from "@/lib/ai-admin-actions";
@@ -996,8 +995,8 @@ export function CommandPalette() {
                             aiState === "confirming"
                               ? "Press Enter to Confirm Action or ESC to Exit..."
                               : aiState === "success"
-                              ? "Action Completed Successfully!"
-                              : "Type your response and press Enter..."
+                                ? "Action Completed Successfully!"
+                                : "Type your response and press Enter..."
                           }
                           className="w-full bg-transparent pr-20 text-base font-medium text-oxford-700 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"
                           aria-label="AI response input"
@@ -1070,11 +1069,10 @@ export function CommandPalette() {
                                 className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
                               >
                                 <div
-                                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                                    msg.sender === "user"
+                                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${msg.sender === "user"
                                       ? "bg-oxford-700 text-white shadow-sm dark:bg-oxford-600"
                                       : "border border-amber-200/60 bg-amber-50/50 text-slate-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-slate-200"
-                                  }`}
+                                    }`}
                                 >
                                   {msg.sender === "ai" && (
                                     <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
@@ -1220,11 +1218,10 @@ export function CommandPalette() {
                               <motion.div
                                 initial={{ opacity: 0, scale: 0.97 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className={`rounded-2xl border p-4 shadow-sm ${
-                                  aiMode === "delete-link"
+                                className={`rounded-2xl border p-4 shadow-sm ${aiMode === "delete-link"
                                     ? "border-rose-300 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/30"
                                     : "border-amber-300/80 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/30"
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-center justify-between border-b pb-2 dark:border-slate-800">
                                   <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
@@ -1288,11 +1285,10 @@ export function CommandPalette() {
                                   <button
                                     type="button"
                                     onClick={() => void executeAdminAction()}
-                                    className={`rounded-xl px-4 py-1.5 text-xs font-bold text-white shadow-md transition ${
-                                      aiMode === "delete-link"
+                                    className={`rounded-xl px-4 py-1.5 text-xs font-bold text-white shadow-md transition ${aiMode === "delete-link"
                                         ? "bg-rose-600 hover:bg-rose-700"
                                         : "bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600"
-                                    }`}
+                                      }`}
                                   >
                                     {aiMode === "delete-link" ? "Confirm Delete" : "Confirm & Execute"}
                                   </button>
@@ -1402,19 +1398,17 @@ export function CommandPalette() {
                                     key={aiAction.id}
                                     onClick={() => handleSelect(aiAction)}
                                     onMouseEnter={() => setSelectedIndex(itemIndex)}
-                                    className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${
-                                      isSelected
+                                    className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${isSelected
                                         ? "bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-md"
                                         : "bg-amber-50/50 text-amber-900 hover:bg-amber-100/80 dark:bg-amber-950/20 dark:text-amber-200 dark:hover:bg-amber-950/40 border border-amber-200/50 dark:border-amber-900/40"
-                                    }`}
+                                      }`}
                                   >
                                     <div className="flex items-center gap-3">
                                       <div
-                                        className={`p-2 rounded-lg ${
-                                          isSelected
+                                        className={`p-2 rounded-lg ${isSelected
                                             ? "bg-white/20 text-white"
                                             : "bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300"
-                                        }`}
+                                          }`}
                                       >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -1430,20 +1424,18 @@ export function CommandPalette() {
                                           )}
                                         </p>
                                         <p
-                                          className={`text-xs ${
-                                            isSelected ? "text-amber-100" : "text-slate-500 dark:text-slate-400"
-                                          }`}
+                                          className={`text-xs ${isSelected ? "text-amber-100" : "text-slate-500 dark:text-slate-400"
+                                            }`}
                                         >
                                           {aiAction.description}
                                         </p>
                                       </div>
                                     </div>
                                     <span
-                                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                                        isSelected
+                                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${isSelected
                                           ? "border-amber-400/40 bg-amber-950/40 text-amber-100"
                                           : "border-amber-300 bg-amber-100/60 text-amber-800 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-                                      }`}
+                                        }`}
                                     >
                                       AI Workflow
                                     </span>
@@ -1469,28 +1461,25 @@ export function CommandPalette() {
                                     key={page.id}
                                     onClick={() => handleSelect(page)}
                                     onMouseEnter={() => setSelectedIndex(itemIndex)}
-                                    className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${
-                                      isSelected
+                                    className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${isSelected
                                         ? "bg-oxford-700 text-white dark:bg-oxford-600"
                                         : "text-oxford-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
-                                    }`}
+                                      }`}
                                   >
                                     <div>
                                       <p className="text-sm font-semibold">{page.title}</p>
                                       <p
-                                        className={`text-xs ${
-                                          isSelected ? "text-slate-200" : "text-slate-500 dark:text-slate-400"
-                                        }`}
+                                        className={`text-xs ${isSelected ? "text-slate-200" : "text-slate-500 dark:text-slate-400"
+                                          }`}
                                       >
                                         {page.description}
                                       </p>
                                     </div>
                                     <span
-                                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                                        isSelected
+                                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${isSelected
                                           ? "border-oxford-500 bg-oxford-800 text-slate-200"
                                           : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
-                                      }`}
+                                        }`}
                                     >
                                       {page.category}
                                     </span>
@@ -1516,37 +1505,33 @@ export function CommandPalette() {
                                     key={link.id}
                                     onClick={() => handleSelect(link)}
                                     onMouseEnter={() => setSelectedIndex(itemIndex)}
-                                    className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${
-                                      isSelected
+                                    className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${isSelected
                                         ? "bg-oxford-700 text-white dark:bg-oxford-600"
                                         : "text-oxford-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
-                                    }`}
+                                      }`}
                                   >
                                     <div className="min-w-0 pr-3">
                                       <div className="flex items-center gap-2">
                                         <span
-                                          className={`font-mono text-xs font-bold ${
-                                            isSelected ? "text-deepforest-300" : "text-deepforest-700 dark:text-slate-300"
-                                          }`}
+                                          className={`font-mono text-xs font-bold ${isSelected ? "text-deepforest-300" : "text-deepforest-700 dark:text-slate-300"
+                                            }`}
                                         >
                                           go.cvsd.live/{link.slug}
                                         </span>
                                         {link.isLocked && (
                                           <span
-                                            className={`rounded-full border px-1.5 py-0.2 text-[9px] font-semibold uppercase ${
-                                              isSelected
+                                            className={`rounded-full border px-1.5 py-0.2 text-[9px] font-semibold uppercase ${isSelected
                                                 ? "border-amber-400/40 bg-amber-950/40 text-amber-200"
                                                 : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-                                            }`}
+                                              }`}
                                           >
                                             Locked
                                           </span>
                                         )}
                                       </div>
                                       <p
-                                        className={`truncate text-sm font-medium ${
-                                          isSelected ? "text-white" : "text-slate-700 dark:text-slate-200"
-                                        }`}
+                                        className={`truncate text-sm font-medium ${isSelected ? "text-white" : "text-slate-700 dark:text-slate-200"
+                                          }`}
                                       >
                                         {link.title}
                                       </p>
@@ -1555,11 +1540,10 @@ export function CommandPalette() {
                                       <button
                                         type="button"
                                         onClick={(e) => void handleCopyLink(link.slug, e)}
-                                        className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
-                                          isSelected
+                                        className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${isSelected
                                             ? "border-oxford-500 bg-oxford-800 text-white hover:bg-oxford-900"
                                             : "border-slate-200 bg-white text-oxford-700 hover:border-oxford-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-                                        }`}
+                                          }`}
                                         title="Copy short link"
                                       >
                                         {copiedSlug === link.slug ? "Copied!" : "Copy"}
@@ -1587,28 +1571,25 @@ export function CommandPalette() {
                                     key={action.id}
                                     onClick={() => handleSelect(action)}
                                     onMouseEnter={() => setSelectedIndex(itemIndex)}
-                                    className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${
-                                      isSelected
+                                    className={`flex cursor-pointer items-center justify-between rounded-xl px-3.5 py-2.5 transition ${isSelected
                                         ? "bg-oxford-700 text-white dark:bg-oxford-600"
                                         : "text-oxford-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
-                                    }`}
+                                      }`}
                                   >
                                     <div>
                                       <p className="text-sm font-semibold">{action.title}</p>
                                       <p
-                                        className={`text-xs ${
-                                          isSelected ? "text-slate-200" : "text-slate-500 dark:text-slate-400"
-                                        }`}
+                                        className={`text-xs ${isSelected ? "text-slate-200" : "text-slate-500 dark:text-slate-400"
+                                          }`}
                                       >
                                         {action.description}
                                       </p>
                                     </div>
                                     <span
-                                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                                        isSelected
+                                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${isSelected
                                           ? "border-oxford-500 bg-oxford-800 text-slate-200"
                                           : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
-                                      }`}
+                                        }`}
                                     >
                                       Action
                                     </span>
@@ -1654,16 +1635,11 @@ export function CommandPalette() {
                           <kbd className="rounded border bg-white px-1.5 py-0.5 text-[10px] dark:border-slate-700 dark:bg-slate-800">
                             ↵
                           </kbd>{" "}
-                          Select / Trigger AI
+                          Select
                         </span>
                       </div>
                     )}
-                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      CVSD Go AI Actions
-                    </span>
+                    <span>CVSD Go Search v2</span>
                   </div>
                 </motion.div>
               </motion.div>
