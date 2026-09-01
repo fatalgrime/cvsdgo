@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { useUser } from "@clerk/nextjs";
+import { SignInButton, useUser } from "@clerk/nextjs";
 import { useToast } from "@/components/toast-provider";
 import { generateQrSvgDataUri } from "@/lib/qr-generator";
 
@@ -15,11 +15,13 @@ type QrCodeDialogProps = {
 };
 
 type RequestStatusPayload = {
-  status: "accepted" | "pending" | "declined" | "none";
+  status: "accepted" | "pending" | "declined" | "none" | "unauthenticated";
   directAccess: boolean;
   canDownload: boolean;
   adminReason: string | null;
   canAppeal: boolean;
+  qrCodeAccessEnabled?: boolean;
+  isAuthenticated?: boolean;
 };
 
 export function QrCodeDialog({ slug, description, triggerButton }: QrCodeDialogProps) {
@@ -32,12 +34,14 @@ export function QrCodeDialog({ slug, description, triggerButton }: QrCodeDialogP
     canDownload: false,
     adminReason: null,
     canAppeal: false,
+    qrCodeAccessEnabled: false,
+    isAuthenticated: false,
   });
   const [isSubmittingReq, setIsSubmittingReq] = useState(false);
   const [showAppealModal, setShowAppealModal] = useState(false);
   const [copiedAppealTemplate, setCopiedAppealTemplate] = useState(false);
 
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const { toast } = useToast();
 
   const shortLinkUrl = `https://go.cvsd.live/${slug}`;
@@ -65,6 +69,15 @@ export function QrCodeDialog({ slug, description, triggerButton }: QrCodeDialogP
   }, [isOpen, slug]);
 
   async function handleRequestAccess() {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "All users must be signed in to submit a permission request.",
+        variant: "error",
+      });
+      return;
+    }
+
     setIsSubmittingReq(true);
     try {
       const response = await fetch("/api/qr-code/request", {
@@ -80,7 +93,7 @@ export function QrCodeDialog({ slug, description, triggerButton }: QrCodeDialogP
         description: "Your download access request has been sent to district admins.",
         variant: "success",
       });
-      setReqState((prev) => ({ ...prev, status: "pending" }));
+      setReqState((prev) => ({ ...prev, status: "pending", canDownload: false }));
     } catch (error) {
       toast({
         title: "Unable to submit request",
@@ -93,6 +106,10 @@ export function QrCodeDialog({ slug, description, triggerButton }: QrCodeDialogP
   }
 
   function handleDownloadSvg() {
+    if (!user && !reqState.canDownload) {
+      toast({ title: "Sign in required", description: "All users must be signed in to download a QR code.", variant: "error" });
+      return;
+    }
     const svgDataUri = generateQrSvgDataUri(shortLinkUrl, includeLogo);
     const link = document.createElement("a");
     link.href = svgDataUri;
@@ -104,6 +121,10 @@ export function QrCodeDialog({ slug, description, triggerButton }: QrCodeDialogP
   }
 
   function handleDownloadPng() {
+    if (!user && !reqState.canDownload) {
+      toast({ title: "Sign in required", description: "All users must be signed in to download a QR code.", variant: "error" });
+      return;
+    }
     const svgDataUri = generateQrSvgDataUri(shortLinkUrl, includeLogo);
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -152,6 +173,8 @@ Status: Agree`;
     toast({ title: "Template Copied", description: "Appeal information template copied to clipboard.", variant: "success" });
     setTimeout(() => setCopiedAppealTemplate(false), 2000);
   }
+
+  const isSignedOut = isLoaded && !user;
 
   return (
     <>
@@ -240,11 +263,26 @@ Status: Agree`;
 
                   {/* Authorization & Download Workflow */}
                   <div className="mt-5 space-y-3">
-                    {reqState.canDownload ? (
+                    {isSignedOut ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                        <p className="text-sm font-semibold">Sign In Required</p>
+                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                          All users must be signed in to download a QR code image or submit an access permission request.
+                        </p>
+                        <SignInButton>
+                          <button
+                            type="button"
+                            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-oxford-700 bg-oxford-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-oxford-600"
+                          >
+                            Sign In / Create Account
+                          </button>
+                        </SignInButton>
+                      </div>
+                    ) : reqState.canDownload ? (
                       <div className="space-y-3">
                         <p className="text-xs text-slate-500">
                           {reqState.directAccess
-                            ? "Staff Access Granted: Download vector SVG or high-res PNG for flyers and posters."
+                            ? "QR Code Downloads Enabled: Download vector SVG or high-res PNG for flyers and posters."
                             : "Download Request Approved: Download vector SVG or high-res PNG for promotional materials."}
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -304,7 +342,7 @@ Status: Agree`;
                     ) : (
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                         <p className="text-xs text-slate-600 dark:text-slate-400">
-                          To download QR code image files for posters, flyers, or print media, please request access from district administrators.
+                          Direct QR downloads are currently disabled for this link. To download high-res PNG or SVG files, please submit a permission request to district administrators.
                         </p>
                         <button
                           type="button"

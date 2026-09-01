@@ -6,6 +6,7 @@ import { hashPassword } from "@/lib/password";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
 import { getRequestContext, logAuditEvent } from "@/lib/audit";
+import { validateContentWithAutoMod } from "@/lib/automod";
 
 type RedirectRow = {
   id: number;
@@ -19,6 +20,7 @@ type RedirectRow = {
   folder_id: number | null;
   folder_name: string | null;
   folder_is_public: boolean | null;
+  qr_code_access_enabled: boolean;
 };
 
 function parseUrl(value: string): string | null {
@@ -80,6 +82,7 @@ export async function GET(): Promise<Response> {
       r.release_at,
       r.expires_at,
       r.folder_id,
+      r.qr_code_access_enabled,
       f.name AS folder_name,
       f.is_public AS folder_is_public
     FROM redirects r
@@ -114,9 +117,18 @@ export async function POST(request: Request): Promise<Response> {
   const expiresAt = parseDate(body.expiresAt);
   const folderId = parseFolderId(body.folderId);
 
+  const qrCodeAccessEnabled = Boolean(body.qrCodeAccessEnabled);
+
   if (!slug || !url) {
     return new Response("Invalid input", { status: 400 });
   }
+
+  // AutoMod Validation
+  const autoModResult = await validateContentWithAutoMod(`${slug} ${description ?? ""} ${url}`);
+  if (!autoModResult.isClean) {
+    return new Response(autoModResult.reason || "Content blocked by AutoMod", { status: 400 });
+  }
+
   if (body.folderId !== null && body.folderId !== undefined && folderId === null) {
     return new Response("Folder is invalid", { status: 400 });
   }
@@ -142,9 +154,9 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const passwordHash = isLocked ? hashPassword(password) : null;
     const rows = (await sql`
-      INSERT INTO redirects (slug, url, description, folder_id, is_locked, password_hash, release_at, expires_at)
-      VALUES (${slug}, ${url}, ${description}, ${folderId}, ${isLocked}, ${passwordHash}, ${releaseAt}, ${expiresAt})
-      RETURNING id, slug, url, description, click_count, is_locked, release_at, expires_at, folder_id;
+      INSERT INTO redirects (slug, url, description, folder_id, is_locked, password_hash, release_at, expires_at, qr_code_access_enabled)
+      VALUES (${slug}, ${url}, ${description}, ${folderId}, ${isLocked}, ${passwordHash}, ${releaseAt}, ${expiresAt}, ${qrCodeAccessEnabled})
+      RETURNING id, slug, url, description, click_count, is_locked, release_at, expires_at, folder_id, qr_code_access_enabled;
     `) as (Omit<RedirectRow, "folder_name" | "folder_is_public"> & { folder_name?: string | null; folder_is_public?: boolean | null })[];
     await logAuditEvent({
       action: "Link created",

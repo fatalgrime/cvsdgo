@@ -11,6 +11,7 @@ export type RedirectRow = {
   folder_name?: string | null;
   folder_is_public?: boolean | null;
   folder_sort_order?: number | null;
+  qr_code_access_enabled?: boolean | null;
 };
 
 export type LinkFolderRow = {

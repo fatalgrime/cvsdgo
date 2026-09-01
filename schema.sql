@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS redirects (
   password_hash TEXT,
   release_at TIMESTAMPTZ,
   expires_at TIMESTAMPTZ,
+  qr_code_access_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   click_count BIGINT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

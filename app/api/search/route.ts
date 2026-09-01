@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { getAccessProfile } from "@/lib/access";
 import { getAllRedirects } from "@/lib/redirects";
+import { validateContentWithAutoMod } from "@/lib/automod";
 
 import { ADMIN_ACTION_DEFINITIONS, type AdminActionType } from "@/lib/ai-admin-actions";
 
@@ -49,6 +50,8 @@ export type SearchResultsPayload = {
   aiAdminActions: SearchAdminActionItem[];
   canManageLinks: boolean;
   isAdmin: boolean;
+  blockedByAutoMod?: boolean;
+  autoModReason?: string;
 };
 
 export async function GET(request: Request): Promise<Response> {
@@ -57,6 +60,23 @@ export async function GET(request: Request): Promise<Response> {
 
   const { userId } = await auth();
   const profile = await getAccessProfile(userId);
+
+  if (query) {
+    const autoModCheck = await validateContentWithAutoMod(query);
+    if (!autoModCheck.isClean) {
+      return Response.json({
+        query,
+        pages: [],
+        links: [],
+        actions: [],
+        aiAdminActions: [],
+        canManageLinks: profile.canManageLinks,
+        isAdmin: profile.admin,
+        blockedByAutoMod: true,
+        autoModReason: autoModCheck.reason,
+      });
+    }
+  }
 
   const availablePages: SearchPageItem[] = [
     {

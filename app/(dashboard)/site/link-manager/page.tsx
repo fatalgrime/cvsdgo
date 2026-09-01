@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { LinkFolderRow, RedirectRow } from "@/lib/types";
 import { useToast } from "@/components/toast-provider";
 import { QrCodeDialog } from "@/components/qr-code-dialog";
+import { validateContentWithAutoModSync } from "@/lib/automod";
 
 const EMPTY_FORM = {
   id: null as number | null,
@@ -18,6 +19,7 @@ const EMPTY_FORM = {
   password: "",
   releaseAt: "",
   expiresAt: "",
+  qrCodeAccessEnabled: false,
 };
 
 const EMPTY_FOLDER_FORM = {
@@ -34,6 +36,7 @@ type LinkPayload = {
   password: string;
   releaseAt: string | null;
   expiresAt: string | null;
+  qrCodeAccessEnabled: boolean;
 };
 
 export default function LinkManagerPage() {
@@ -211,6 +214,7 @@ export default function LinkManagerPage() {
       password: "",
       releaseAt: formatLocalDateTime(link.release_at ?? null),
       expiresAt: formatLocalDateTime(link.expires_at ?? null),
+      qrCodeAccessEnabled: Boolean(link.qr_code_access_enabled),
     });
   }
 
@@ -220,6 +224,18 @@ export default function LinkManagerPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+
+    // AutoMod client check
+    const autoModCheck = validateContentWithAutoModSync(`${form.slug} ${form.description} ${form.url}`);
+    if (!autoModCheck.isClean) {
+      toast({
+        title: "AutoMod Content Warning",
+        description: autoModCheck.reason || "Please use school-appropriate language.",
+        variant: "error",
+      });
+      return;
+    }
+
     setIsSaving(true);
 
     const payload: LinkPayload = {
@@ -231,6 +247,7 @@ export default function LinkManagerPage() {
       password: form.password,
       releaseAt: form.releaseAt ? new Date(form.releaseAt).toISOString() : null,
       expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
+      qrCodeAccessEnabled: form.qrCodeAccessEnabled,
     };
 
     try {
@@ -523,6 +540,15 @@ export default function LinkManagerPage() {
                                   {link.folder_is_public === false ? " (Private)" : ""}
                                 </span>
                               )}
+                              {link.qr_code_access_enabled ? (
+                                <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                  Direct QR Allowed
+                                </span>
+                              ) : (
+                                <span className="ml-2 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-400">
+                                  QR Request Required
+                                </span>
+                              )}
                             </p>
                             <p className="mt-1 text-sm text-oxford-700 dark:text-slate-200">{link.description || link.url}</p>
                             <p className="mt-0.5 text-xs text-slate-500">{link.url}</p>
@@ -800,6 +826,20 @@ export default function LinkManagerPage() {
                     className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                   <p className="mt-1 text-xs text-slate-400">Leave empty to keep the link active indefinitely.</p>
                 </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+                <label className="flex items-center gap-3 text-sm font-semibold text-oxford-700 dark:text-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.qrCodeAccessEnabled}
+                    onChange={(event) => updateField("qrCodeAccessEnabled", event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-oxford-700 focus:ring-oxford-700"
+                  />
+                  Allow Direct QR Code Downloads
+                </label>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 pl-7">
+                  When enabled, all signed-in users can download the QR code without requesting permission.
+                </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                 <label className="flex items-center gap-3 text-sm text-oxford-700 dark:text-slate-200">

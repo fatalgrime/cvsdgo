@@ -3,6 +3,7 @@ import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureReportSchema } from "@/lib/report-schema";
 import { isReportStaffUser } from "@/lib/access";
 import { logAuditEvent } from "@/lib/audit";
+import { validateContentWithAutoMod } from "@/lib/automod";
 import type { ReportCommentRow, ReportRow } from "@/lib/types";
 
 type ReportInsertRow = ReportRow;
@@ -80,6 +81,12 @@ export async function POST(request: Request): Promise<Response> {
 
   if (!title || !description) {
     return new Response("Title and description are required", { status: 400 });
+  }
+
+  // AutoMod Validation
+  const autoModResult = await validateContentWithAutoMod(`${title} ${description} ${linkSlug ?? ""}`);
+  if (!autoModResult.isClean) {
+    return new Response(autoModResult.reason || "Content blocked by AutoMod", { status: 400 });
   }
 
   await ensureReportSchema();

@@ -1417,6 +1417,16 @@ export function CommandPalette() {
                           </div>
                         )}
 
+                        {/* AutoMod Warning Banner */}
+                        {results.blockedByAutoMod && (
+                          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-center dark:border-rose-900/60 dark:bg-rose-950/40">
+                            <p className="text-xs font-bold uppercase tracking-wider text-rose-800 dark:text-rose-200">AutoMod Content Blocked</p>
+                            <p className="mt-1 text-xs text-rose-700 dark:text-rose-300">
+                              {results.autoModReason || "Search query contains inappropriate or profane language blocked by AutoMod."}
+                            </p>
+                          </div>
+                        )}
+
                         {/* Section 0: AI Admin Actions */}
                         {!isLoading && results.aiAdminActions && results.aiAdminActions.length > 0 && (
                           <div className="mb-2">

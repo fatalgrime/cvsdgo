@@ -22,6 +22,7 @@ const getAllRedirectsCached = unstable_cache(
           r.is_locked,
           r.release_at,
           r.expires_at,
+          r.qr_code_access_enabled,
           r.folder_id,
           f.name AS folder_name,
           f.is_public AS folder_is_public,

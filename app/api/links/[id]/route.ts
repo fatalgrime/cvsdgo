@@ -6,6 +6,7 @@ import { hashPassword } from "@/lib/password";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
 import { getRequestContext, logAuditEvent } from "@/lib/audit";
+import { validateContentWithAutoMod } from "@/lib/automod";
 
 type RedirectRow = {
   id: number;
@@ -17,6 +18,7 @@ type RedirectRow = {
   release_at: string | null;
   expires_at: string | null;
   folder_id: number | null;
+  qr_code_access_enabled: boolean;
 };
 
 function parseUrl(value: string): string | null {
@@ -84,10 +86,18 @@ export async function PUT(
   const releaseAt = parseDate(body.releaseAt);
   const expiresAt = parseDate(body.expiresAt);
   const folderId = parseFolderId(body.folderId);
+  const qrCodeAccessEnabled = Boolean(body.qrCodeAccessEnabled);
 
   if (!slug || !url) {
     return new Response("Invalid input", { status: 400 });
   }
+
+  // AutoMod Validation
+  const autoModResult = await validateContentWithAutoMod(`${slug} ${description ?? ""} ${url}`);
+  if (!autoModResult.isClean) {
+    return new Response(autoModResult.reason || "Content blocked by AutoMod", { status: 400 });
+  }
+
   if (body.folderId !== null && body.folderId !== undefined && folderId === null) {
     return new Response("Folder is invalid", { status: 400 });
   }
@@ -114,9 +124,9 @@ export async function PUT(
     if (!isLocked) {
       const rows = (await sql`
         UPDATE redirects
-        SET slug = ${slug}, url = ${url}, description = ${description}, folder_id = ${folderId}, is_locked = false, password_hash = NULL, release_at = ${releaseAt}, expires_at = ${expiresAt}, updated_at = NOW()
+        SET slug = ${slug}, url = ${url}, description = ${description}, folder_id = ${folderId}, is_locked = false, password_hash = NULL, release_at = ${releaseAt}, expires_at = ${expiresAt}, qr_code_access_enabled = ${qrCodeAccessEnabled}, updated_at = NOW()
         WHERE id = ${id}
-        RETURNING id, slug, url, description, click_count, is_locked, release_at, expires_at, folder_id;
+        RETURNING id, slug, url, description, click_count, is_locked, release_at, expires_at, folder_id, qr_code_access_enabled;
       `) as RedirectRow[];
 
       if (rows.length === 0) {
@@ -131,9 +141,9 @@ export async function PUT(
       const passwordHash = hashPassword(password);
       const rows = (await sql`
         UPDATE redirects
-        SET slug = ${slug}, url = ${url}, description = ${description}, folder_id = ${folderId}, is_locked = true, password_hash = ${passwordHash}, release_at = ${releaseAt}, expires_at = ${expiresAt}, updated_at = NOW()
+        SET slug = ${slug}, url = ${url}, description = ${description}, folder_id = ${folderId}, is_locked = true, password_hash = ${passwordHash}, release_at = ${releaseAt}, expires_at = ${expiresAt}, qr_code_access_enabled = ${qrCodeAccessEnabled}, updated_at = NOW()
         WHERE id = ${id}
-        RETURNING id, slug, url, description, click_count, is_locked, release_at, expires_at, folder_id;
+        RETURNING id, slug, url, description, click_count, is_locked, release_at, expires_at, folder_id, qr_code_access_enabled;
       `) as RedirectRow[];
 
       if (rows.length === 0) {
@@ -169,9 +179,9 @@ export async function PUT(
 
     const rows = (await sql`
       UPDATE redirects
-      SET slug = ${slug}, url = ${url}, description = ${description}, folder_id = ${folderId}, is_locked = true, release_at = ${releaseAt}, expires_at = ${expiresAt}, updated_at = NOW()
+      SET slug = ${slug}, url = ${url}, description = ${description}, folder_id = ${folderId}, is_locked = true, release_at = ${releaseAt}, expires_at = ${expiresAt}, qr_code_access_enabled = ${qrCodeAccessEnabled}, updated_at = NOW()
       WHERE id = ${id}
-      RETURNING id, slug, url, description, click_count, is_locked, release_at, expires_at, folder_id;
+      RETURNING id, slug, url, description, click_count, is_locked, release_at, expires_at, folder_id, qr_code_access_enabled;
     `) as RedirectRow[];
 
     if (rows.length === 0) {

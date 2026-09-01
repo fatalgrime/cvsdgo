@@ -8,6 +8,15 @@ async function runEnsureLinkSchema(): Promise<void> {
   const sql = getSql();
 
   try {
+    await sql`
+      ALTER TABLE redirects
+      ADD COLUMN IF NOT EXISTS qr_code_access_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+    `;
+  } catch (error) {
+    console.error("Error adding qr_code_access_enabled column:", error);
+  }
+
+  try {
     const check = (await sql`
       SELECT 1 FROM information_schema.tables WHERE table_name = 'link_folders' LIMIT 1;
     `) as unknown[];
