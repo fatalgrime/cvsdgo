@@ -506,7 +506,7 @@ export default function LinkManagerPage() {
 
               {isLoading ? (
                 <div className="mt-4 space-y-2">
-                  {[0,1,2].map((i) => (
+                  {[0, 1, 2].map((i) => (
                     <div key={i} className="animate-pulse rounded-xl border border-slate-100 p-3 dark:border-slate-800">
                       <div className="h-3 w-32 rounded bg-slate-200 dark:bg-slate-700" />
                       <div className="mt-2 h-2.5 w-56 rounded bg-slate-100 dark:bg-slate-800" />
@@ -514,7 +514,7 @@ export default function LinkManagerPage() {
                   ))}
                 </div>
               ) : (
-                <motion.ul layout className="mt-4 space-y-2 text-sm text-oxford-700">
+                <motion.ul layout className="mt-4 space-y-4 text-sm text-oxford-700">
                   <AnimatePresence initial={false}>
                     {sortedLinks.map((link) => (
                       <motion.li
@@ -523,7 +523,7 @@ export default function LinkManagerPage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -12 }}
                         transition={{ duration: 0.2 }}
-                        className="rounded-xl border border-slate-200 px-3 py-3 dark:border-slate-800"
+                        className="rounded-2xl border border-slate-200 p-5 bg-white dark:bg-slate-900 dark:border-slate-800 shadow-sm"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
@@ -711,13 +711,12 @@ export default function LinkManagerPage() {
                           </span>
                         </div>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                            req.status === "accepted"
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${req.status === "accepted"
                               ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                               : req.status === "declined"
-                              ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                              : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                          }`}
+                                ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            }`}
                         >
                           {req.status}
                         </span>

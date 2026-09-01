@@ -100,19 +100,19 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
 
   return (
     <section className="w-full pb-6">
-      <div className="space-y-8">
+      <div className="space-y-10">
         {groupedLinks.map((group) => (
           <section key={group.title} className="space-y-4">
             <div className="flex items-center gap-3 border-b border-slate-200/80 pb-2.5 dark:border-slate-800/80">
               <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-deepforest-700 dark:text-deepforest-400">
                 {group.title}
               </h2>
-              <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+              <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
                 {group.links.length}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {group.links.map((link) => {
                 const shortName = `go.cvsd.live/${link.slug}`;
                 return (
@@ -121,38 +121,31 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
                     className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-oxford-300 hover:shadow-md dark:border-slate-800/90 dark:bg-slate-900/80 dark:hover:border-slate-700"
                   >
                     <div>
-                      {/* Top Bar: Slug pill + Status badges */}
+                      {/* Top Bar: Short URL slug pill + LOCKED status indicator */}
                       <div className="flex items-center justify-between gap-2">
                         <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100/90 px-2.5 py-1 font-mono text-[11px] font-bold text-oxford-700 dark:border-slate-700/80 dark:bg-slate-800/80 dark:text-slate-200">
                           {shortName}
                         </span>
 
                         {link.is_locked && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
                             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                               <path d="M7 11V7a5 5 0 0110 0v4" />
                             </svg>
-                            Locked
+                            LOCKED
                           </span>
                         )}
                       </div>
 
-                      {/* Main Title & Details */}
-                      <h3 className="mt-3.5 line-clamp-2 text-base font-bold text-oxford-700 dark:text-slate-100 min-h-[3rem] leading-snug">
+                      {/* Main Link Title */}
+                      <h3 className="mt-3.5 line-clamp-2 text-base font-bold text-oxford-700 dark:text-slate-100 leading-snug">
                         {link.description || link.url}
                       </h3>
-
-                      <p className="mt-1.5 flex items-center gap-1.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                        <svg className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                        <span className="truncate">{link.is_locked ? "Password Protected Destination" : link.url}</span>
-                      </p>
                     </div>
 
-                    {/* Action Bar (Identical H-9 height and styling across all buttons) */}
-                    <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4 dark:border-slate-800/80">
+                    {/* Uniform Action Bar (Open, Copy, QR Code) */}
+                    <div className="mt-6 flex items-center gap-2 border-t border-slate-100 pt-4 dark:border-slate-800/80">
                       <Link
                         href={`/${link.slug}`}
                         className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-oxford-700 px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-oxford-600 focus:outline-none focus:ring-2 focus:ring-oxford-700 focus:ring-offset-2 dark:bg-oxford-600 dark:hover:bg-oxford-500"
