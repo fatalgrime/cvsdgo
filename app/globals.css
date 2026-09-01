@@ -140,3 +140,17 @@ body {
 .dark textarea::placeholder {
   color: rgb(148 163 184);
 }
+
+/* Prevent QR code image dragging & selection across browser & touch devices */
+img[src*="data:image/svg+xml"],
+.qr-code-image,
+.qr-code-preview,
+img[alt*="QR Code"] {
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -ms-user-select: none !important;
+}

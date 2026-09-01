@@ -1,7 +1,8 @@
 import { LinkDashboard } from "@/components/link-dashboard";
 import { getAllRedirects } from "@/lib/redirects";
 
-export const revalidate = 120;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function HomePage() {
   const links = await getAllRedirects();

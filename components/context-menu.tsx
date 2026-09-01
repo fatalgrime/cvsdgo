@@ -115,7 +115,11 @@ export function ContextMenu() {
 
   const handleReload = () => {
     closeMenu();
-    router.refresh();
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    } else {
+      router.refresh();
+    }
   };
 
   if (!portalReady) return null;

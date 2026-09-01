@@ -536,10 +536,12 @@ export default function SupportPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
               <div>
                 <h2 className="text-lg font-bold text-oxford-700 dark:text-slate-100">
-                  QR Code Access Permission Requests
+                  {isStaff ? "QR Code Access Permission Requests" : "Your QR Code Permission Requests"}
                 </h2>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Review and manage user permissions to download high-resolution QR codes for district links.
+                  {isStaff
+                    ? "Review and manage user permissions to download high-resolution QR codes for district links."
+                    : "Track the status and details of your submitted QR code download permission requests."}
                 </p>
               </div>
               <button
@@ -600,11 +602,13 @@ export default function SupportPage() {
                         </div>
 
                         <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-400">
-                          <p>
-                            <strong className="font-semibold text-slate-700 dark:text-slate-300">Requested by:</strong>{" "}
-                            {req.user_name || req.user_email || req.user_id}{" "}
-                            {req.user_email && <span className="text-slate-400">({req.user_email})</span>}
-                          </p>
+                          {isStaff && (
+                            <p>
+                              <strong className="font-semibold text-slate-700 dark:text-slate-300">Requested by:</strong>{" "}
+                              {req.user_name || req.user_email || req.user_id}{" "}
+                              {req.user_email && <span className="text-slate-400">({req.user_email})</span>}
+                            </p>
+                          )}
                           <p>
                             <strong className="font-semibold text-slate-700 dark:text-slate-300">Request Date:</strong>{" "}
                             {new Date(req.created_at).toLocaleString()}

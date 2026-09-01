@@ -184,7 +184,7 @@ Status: Agree`;
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-oxford-700 shadow-sm transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-xs font-semibold text-oxford-700 shadow-sm transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300"
           title="Generate QR Code"
         >
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -240,11 +240,17 @@ Status: Agree`;
                   </div>
 
                   {/* QR Code Visual Preview */}
-                  <div className="mt-5 flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-800 dark:bg-slate-900/60">
+                  <div
+                    className="mt-5 flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-6 select-none dark:border-slate-800 dark:bg-slate-900/60"
+                    onDragStart={(e) => e.preventDefault()}
+                  >
                     <img
                       src={generateQrSvgDataUri(shortLinkUrl, includeLogo)}
                       alt={`QR Code for ${shortLinkUrl}`}
-                      className="h-56 w-56 rounded-lg border border-slate-300 bg-white p-3 shadow-md dark:border-slate-700"
+                      draggable={false}
+                      onDragStart={(e) => e.preventDefault()}
+                      className="h-56 w-56 qr-code-image select-none rounded-lg border border-slate-300 bg-white p-3 shadow-md dark:border-slate-700"
+                      style={{ userSelect: "none" }}
                     />
 
                     <div className="mt-4 flex items-center gap-2">

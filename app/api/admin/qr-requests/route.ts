@@ -21,26 +21,42 @@ type QrRequestRowAdmin = {
 
 export async function GET(): Promise<Response> {
   const { userId } = await auth();
-  const profile = await getAccessProfile(userId);
-
-  if (!profile.admin && !profile.reportStaff && !profile.canManageLinks) {
-    return new Response("Forbidden", { status: 403 });
+  if (!userId) {
+    return new Response("Unauthorized", { status: 401 });
   }
 
+  const profile = await getAccessProfile(userId);
+  const isStaff = profile.admin || profile.reportStaff || profile.canManageLinks;
+
   if (!hasDatabaseUrl()) {
-    return Response.json({ requests: [] });
+    return Response.json({ requests: [], isStaff });
   }
 
   await ensureQrSchema();
   const sql = getSql();
-  const requests = (await sql`
-    SELECT id, link_slug, user_id, user_email, user_name, status, admin_reason, can_appeal, reviewed_by_user_id, reviewed_by_name, created_at, updated_at
-    FROM qr_code_requests
-    ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, id DESC
-    LIMIT 100;
-  `) as QrRequestRowAdmin[];
 
-  return Response.json({ requests });
+  if (isStaff) {
+    // Staff/Admins view all requests across all users
+    const requests = (await sql`
+      SELECT id, link_slug, user_id, user_email, user_name, status, admin_reason, can_appeal, reviewed_by_user_id, reviewed_by_name, created_at, updated_at
+      FROM qr_code_requests
+      ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, id DESC
+      LIMIT 100;
+    `) as QrRequestRowAdmin[];
+
+    return Response.json({ requests, isStaff: true });
+  } else {
+    // Regular users ONLY view their own permission requests (server-side enforced)
+    const requests = (await sql`
+      SELECT id, link_slug, user_id, user_email, user_name, status, admin_reason, can_appeal, reviewed_by_user_id, reviewed_by_name, created_at, updated_at
+      FROM qr_code_requests
+      WHERE user_id = ${userId}
+      ORDER BY id DESC
+      LIMIT 50;
+    `) as QrRequestRowAdmin[];
+
+    return Response.json({ requests, isStaff: false });
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -49,10 +65,10 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Strict server-side restriction: Only staff & admins can modify, approve, or deny requests
   const profile = await getAccessProfile(userId);
-
   if (!profile.admin && !profile.reportStaff && !profile.canManageLinks) {
-    return new Response("Forbidden", { status: 403 });
+    return new Response("Forbidden: Only administrators and authorized staff can approve or deny permission requests.", { status: 403 });
   }
 
   if (!hasDatabaseUrl()) {

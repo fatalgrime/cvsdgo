@@ -3,51 +3,64 @@ import { unstable_cache } from "next/cache";
 import type { RedirectRow } from "@/lib/types";
 import { ensureLinkSchema } from "@/lib/link-schema";
 
+async function fetchRedirectsFromDb(): Promise<RedirectRow[]> {
+  if (!hasDatabaseUrl()) return [];
+  try {
+    await ensureLinkSchema();
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT
+        r.id,
+        r.slug,
+        r.url,
+        r.description,
+        r.click_count,
+        r.is_locked,
+        r.release_at,
+        r.expires_at,
+        r.qr_code_access_enabled,
+        r.folder_id,
+        f.name AS folder_name,
+        f.is_public AS folder_is_public,
+        f.sort_order AS folder_sort_order
+      FROM redirects r
+      LEFT JOIN link_folders f ON f.id = r.folder_id
+      WHERE r.folder_id IS NULL OR f.is_public IS DISTINCT FROM false
+      ORDER BY COALESCE(f.sort_order, 0), COALESCE(f.name, ''), r.slug ASC;
+    `) as RedirectRow[];
+
+    return rows;
+  } catch (error) {
+    console.error("Error loading redirects from DB:", error);
+    return [];
+  }
+}
+
 const getAllRedirectsCached = unstable_cache(
   async (): Promise<RedirectRow[]> => {
-    if (!hasDatabaseUrl()) {
-      return [];
-    }
-
-    try {
-      await ensureLinkSchema();
-      const sql = getSql();
-      const rows = (await sql`
-        SELECT
-          r.id,
-          r.slug,
-          r.url,
-          r.description,
-          r.click_count,
-          r.is_locked,
-          r.release_at,
-          r.expires_at,
-          r.qr_code_access_enabled,
-          r.folder_id,
-          f.name AS folder_name,
-          f.is_public AS folder_is_public,
-          f.sort_order AS folder_sort_order
-        FROM redirects r
-        LEFT JOIN link_folders f ON f.id = r.folder_id
-        WHERE r.folder_id IS NULL OR f.is_public IS DISTINCT FROM false
-        ORDER BY COALESCE(f.sort_order, 0), COALESCE(f.name, ''), r.slug ASC;
-      `) as RedirectRow[];
-
-      return rows;
-    } catch (error) {
-      console.error("Error loading redirects:", error);
-      return [];
-    }
+    return fetchRedirectsFromDb();
   },
   ["redirects:all"],
-  { revalidate: 120, tags: ["redirects"] }
+  { revalidate: 60, tags: ["redirects"] }
 );
 
 export async function getAllRedirects(): Promise<RedirectRow[]> {
   if (!hasDatabaseUrl()) {
     return [];
   }
-  return getAllRedirectsCached();
+  let cached: RedirectRow[] = [];
+  try {
+    cached = await getAllRedirectsCached();
+  } catch (err) {
+    console.error("Cache read failed in getAllRedirects:", err);
+  }
+
+  // Fallback to direct DB query if cached output is empty
+  if (!cached || cached.length === 0) {
+    return await fetchRedirectsFromDb();
+  }
+
+  return cached;
 }
 
 export type RedirectDestinationInfo = {
@@ -90,4 +103,3 @@ export function recordClick(rawSlug: string): void {
     console.error("Failed to record click for slug:", slug, err);
   });
 }
-
