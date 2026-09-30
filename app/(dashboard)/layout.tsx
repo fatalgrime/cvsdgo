@@ -49,7 +49,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
 
           <div className="flex flex-1 items-center justify-center max-w-md mx-1 sm:mx-4">
-            <CommandPaletteShell isStaff={isStaff} />
+            <CommandPaletteShell />
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">

@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
-import { ensureAuditSchema, getRequestContext, logAuditEvent } from "@/lib/audit";
+import { ensureAuditSchema, getRequestContext, logAuditEvent, resolveAuditActorInfo } from "@/lib/audit";
 import { canEditDiscordWebhook, getAccessProfile, isAllowedUser } from "@/lib/access";
 
 type SettingsRequestBody = {
@@ -34,7 +34,7 @@ export async function GET(): Promise<Response> {
     settings.discord_webhook_url = settings.discord_webhook_url.replace(/.(?=.{4,}$)/g, "•");
   }
   const logs = (await sql`
-    SELECT id, action, details, actor_user_id, actor_username, actor_has_discord_account, actor_has_login_account, actor_ip_address, actor_user_agent, metadata, severity, category, source, created_at
+    SELECT id, action, details, actor_user_id, actor_username, actor_email, actor_discord_username, actor_discord_user_id, actor_has_discord_account, actor_has_login_account, actor_ip_address, actor_user_agent, metadata, severity, category, source, created_at
     FROM audit_logs
     ORDER BY created_at DESC
     LIMIT 100;
@@ -44,6 +44,9 @@ export async function GET(): Promise<Response> {
     details: string | null;
     actor_user_id: string | null;
     actor_username: string | null;
+    actor_email: string | null;
+    actor_discord_username: string | null;
+    actor_discord_user_id: string | null;
     actor_has_discord_account: boolean;
     actor_has_login_account: boolean;
     actor_ip_address: string | null;
@@ -54,6 +57,21 @@ export async function GET(): Promise<Response> {
     source: string | null;
     created_at: string;
   }>;
+  const missingActorIds = [...new Set(logs.filter((log) => log.actor_user_id && !log.actor_username && !log.actor_email).map((log) => log.actor_user_id as string))];
+  const actorEntries = await Promise.all(missingActorIds.slice(0, 25).map(async (id) => [id, await resolveAuditActorInfo(id)] as const));
+  const actorMap = new Map(actorEntries);
+  const enrichedLogs = logs.map((log) => {
+    const actor = log.actor_user_id ? actorMap.get(log.actor_user_id) : null;
+    return actor ? {
+      ...log,
+      actor_username: actor.username,
+      actor_email: actor.email,
+      actor_discord_username: actor.discordUsername,
+      actor_discord_user_id: actor.discordUserId,
+      actor_has_discord_account: actor.hasDiscordAccount,
+      actor_has_login_account: actor.hasLoginAccount,
+    } : log;
+  });
   const health = {
     databaseConfigured: hasDatabaseUrl(),
     webhookConfigured: Boolean(settings.discord_webhook_url),
@@ -61,7 +79,7 @@ export async function GET(): Promise<Response> {
     latestActivityAt: logs[0]?.created_at ?? null,
   };
 
-  return Response.json({ settings, auditLogs: logs, canEditWebhook: canEdit, canEditPolicies: accessProfile.admin, health });
+  return Response.json({ settings, auditLogs: enrichedLogs, canEditWebhook: canEdit, canEditPolicies: accessProfile.admin, health });
 }
 
 export async function POST(request: Request): Promise<Response> {

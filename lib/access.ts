@@ -10,6 +10,9 @@ const ACCESS_CACHE_TTL_MS = 30_000;
 export type CachedUserInfo = {
   profile: AccessProfile;
   username: string | null;
+  email: string | null;
+  discordUsername: string | null;
+  discordUserId: string | null;
   hasDiscordAccount: boolean;
   hasLoginAccount: boolean;
 };
@@ -132,16 +135,19 @@ export async function getAccessProfile(userId: string | null): Promise<AccessPro
   const profile = buildAccessProfile(user);
 
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  const username = user.username || fullName || user.emailAddresses[0]?.emailAddress || null;
-  const hasDiscordAccount = user.externalAccounts.some((account) =>
-    account.provider.toLowerCase().includes("discord")
-  );
+  const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses[0]?.emailAddress || null;
+  const discordAccount = user.externalAccounts.find((account) => account.provider.toLowerCase().includes("discord"));
+  const discordDetails = discordAccount as unknown as { username?: string | null; emailAddress?: string | null; providerUserId?: string | null } | undefined;
+  const discordUsername = discordDetails?.username || null;
+  const discordUserId = discordDetails?.providerUserId || null;
+  const username = user.username || discordUsername || fullName || email || null;
+  const hasDiscordAccount = Boolean(discordAccount);
   const hasLoginAccount =
     Boolean((user as { passwordEnabled?: boolean }).passwordEnabled) ||
     user.emailAddresses.length > 0 ||
     user.externalAccounts.length > 0;
 
-  setCachedEntry(userId, { profile, username, hasDiscordAccount, hasLoginAccount });
+  setCachedEntry(userId, { profile, username, email, discordUsername, discordUserId, hasDiscordAccount, hasLoginAccount });
   return profile;
 }
 

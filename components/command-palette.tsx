@@ -87,9 +87,20 @@ type LinkOption = {
   folder_name: string | null;
 };
 
-export function CommandPalette({ initialActionType }: { initialActionType?: AdminActionType } = {}) {
+type CommandPaletteProps = {
+  open?: boolean;
+  onClose?: () => void;
+  initialActionType?: AdminActionType;
+};
+
+export function CommandPalette({ open: controlledOpen, onClose, initialActionType }: CommandPaletteProps = {}) {
   const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlledOpen ?? internalOpen;
+  const closeDialog = useCallback(() => {
+    if (onClose) onClose();
+    else setInternalOpen(false);
+  }, [onClose]);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [results, setResults] = useState<SearchResultsPayload>({
@@ -166,16 +177,16 @@ export function CommandPalette({ initialActionType }: { initialActionType?: Admi
   const didStartInitialAction = useRef(false);
 
   useEffect(() => {
-    if (initialActionType) return;
+    if (initialActionType || controlledOpen !== undefined) return;
     function handleKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setIsOpen((prev) => !prev);
+        setInternalOpen((prev) => !prev);
       }
     }
 
     function handleOpenEvent() {
-      setIsOpen(true);
+      setInternalOpen(true);
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -185,7 +196,7 @@ export function CommandPalette({ initialActionType }: { initialActionType?: Admi
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("cvsdgo:open-command-palette", handleOpenEvent);
     };
-  }, [initialActionType]);
+  }, [controlledOpen, initialActionType]);
 
   useEffect(() => {
     if (isOpen) {
@@ -352,7 +363,7 @@ export function CommandPalette({ initialActionType }: { initialActionType?: Admi
   useEffect(() => {
     if (!initialActionType || didStartInitialAction.current) return;
     didStartInitialAction.current = true;
-    setIsOpen(true);
+    setInternalOpen(true);
     const timer = window.setTimeout(() => startAiWorkflow(initialActionType), 0);
     return () => window.clearTimeout(timer);
   }, [initialActionType, startAiWorkflow]);
@@ -379,7 +390,7 @@ export function CommandPalette({ initialActionType }: { initialActionType?: Admi
       return;
     }
 
-    setIsOpen(false);
+    closeDialog();
     if (item.type === "page") {
       router.push(item.href);
     } else if (item.type === "link") {
@@ -526,7 +537,7 @@ export function CommandPalette({ initialActionType }: { initialActionType?: Admi
           {
             id: `msg-ai-${Date.now()}`,
             sender: "ai",
-            text: `Should this link be password protected?`,
+            text: `Should this link be locked?`,
             fieldKey: "isLocked",
           },
         ]);
@@ -913,7 +924,7 @@ export function CommandPalette({ initialActionType }: { initialActionType?: Admi
       if (aiMode) {
         exitAiWorkflow();
       } else {
-        setIsOpen(false);
+        closeDialog();
       }
     } else if (!aiMode && event.key === "ArrowDown") {
       event.preventDefault();
@@ -951,7 +962,7 @@ export function CommandPalette({ initialActionType }: { initialActionType?: Admi
     <>
       <AccessibleDialog
         open={isOpen}
-        onClose={() => { if (aiMode) exitAiWorkflow(); else setIsOpen(false); }}
+        onClose={() => { if (aiMode) exitAiWorkflow(); else closeDialog(); }}
         ariaLabel="Command palette search"
         zIndexClassName="z-[100]"
         align="top"

@@ -332,9 +332,10 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
       <button
         type="button"
         onClick={() => setIsSelectionOpen(true)}
-        className="inline-flex items-center gap-2 rounded-md border border-oxford-700 bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600"
+        className="inline-flex items-center gap-2 rounded-xl border border-oxford-700 bg-oxford-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-oxford-600 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxford-500"
       >
-        Policies
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 11h6M9 15h6"/></svg>
+        Open policy editor
       </button>
 
       {portalReady &&
@@ -348,7 +349,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+                  className="w-full max-w-3xl overflow-hidden rounded-3xl border border-white/20 bg-slate-50 shadow-2xl dark:border-slate-700/80 dark:bg-slate-950"
                   initial={{ opacity: 0, scale: 0.96, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -358,18 +359,17 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   aria-label="Choose a policy document to edit"
                   onKeyDown={(event) => handleDialogKeys(event, closeSelectionDialog)}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Policies</p>
-                      <h3 className="mt-2 font-serif text-2xl text-oxford-700 dark:text-slate-100">Choose a document to edit</h3>
-                      <p className="mt-2 max-w-xl text-sm text-slate-600 dark:text-slate-400">
-                        Choose a public document below. You’ll see its current source and last update before opening the split editor.
-                      </p>
+                  <div className="relative flex items-start justify-between gap-4 overflow-hidden bg-oxford-700 px-6 py-6 text-white sm:px-8">
+                    <div className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full border-[24px] border-white/5" />
+                    <div className="relative">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">Policy editor</p>
+                      <h3 className="mt-1 font-serif text-2xl font-semibold sm:text-3xl">Choose a document</h3>
+                      <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">Select the policy you want to revise. Each document opens with its source and live public preview side by side.</p>
                     </div>
                     <button
                       type="button"
                       onClick={closeSelectionDialog}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-semibold text-oxford-700 transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-lg font-semibold text-white transition hover:bg-white/20"
                       aria-label="Close policy selection"
                       autoFocus
                     >
@@ -377,7 +377,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                     </button>
                   </div>
 
-                  <div className="mt-6 space-y-3">
+                  <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
                     {(Object.keys(POLICY_DOCUMENTS) as PolicyDocumentKey[]).map((key) => {
                       const definition = POLICY_DOCUMENTS[key];
                       const document = availableDocuments?.[key];
@@ -386,7 +386,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                           key={key}
                           type="button"
                           onClick={() => void openPolicyEditor(key)}
-                          className="group flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left transition hover:-translate-y-0.5 hover:border-oxford-400 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxford-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-oxford-500 dark:hover:bg-slate-900"
+                          className="group flex min-h-52 w-full flex-col items-start rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-oxford-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxford-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-slate-600"
                         >
                           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-oxford-200 bg-oxford-50 text-oxford-700 transition group-hover:border-oxford-300 group-hover:bg-oxford-100 dark:border-oxford-800 dark:bg-oxford-950/50 dark:text-oxford-200">
                             {key === "privacy" ? (
@@ -395,20 +395,15 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                               <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 11h6M9 15h6"/></svg>
                             )}
                           </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex flex-wrap items-center gap-2">
-                              <span className="text-base font-semibold text-oxford-700 dark:text-slate-100">{definition.title}</span>
-                              <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${document?.isDefault ? "border-slate-300 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"}`}>
-                                {document?.isDefault ? "Default content" : "Customized"}
-                              </span>
-                            </span>
-                            <span className="mt-1 block truncate text-sm text-slate-500 dark:text-slate-400">{definition.route}</span>
-                            <span className="mt-1 block text-xs text-slate-400">
+                          <span className="mt-4 min-w-0 flex-1">
+                            <span className="block text-lg font-semibold text-oxford-700 dark:text-slate-100">{definition.title}</span>
+                            <span className="mt-2 block font-mono text-xs font-semibold text-deepforest-700 dark:text-slate-300">{definition.route}</span>
+                            <span className="mt-2 block text-xs leading-5 text-slate-400">
                               {document?.updatedAt ? `Last updated ${new Date(document.updatedAt).toLocaleString()}` : "No saved revision yet"}
                             </span>
                           </span>
-                          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-oxford-600 dark:text-oxford-300">
-                            Edit
+                          <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-oxford-600 dark:text-oxford-300">
+                            Edit document
                             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
                           </span>
                         </button>
@@ -417,7 +412,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   </div>
 
                   {fetchError ? (
-                    <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-100">
+                    <div className="mx-5 mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-100 sm:mx-6 sm:mb-6">
                       {fetchError}
                     </div>
                   ) : null}
@@ -472,26 +467,24 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   aria-label={`Edit ${selectedDocument.label}`}
                   onKeyDown={(event) => handleDialogKeys(event, requestCloseEditor)}
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
+                  <div className="relative flex flex-wrap items-start justify-between gap-4 overflow-hidden border-b border-oxford-600 bg-oxford-700 px-6 py-5 text-white">
+                    <div className="pointer-events-none absolute -right-12 -top-20 h-44 w-44 rounded-full border-[26px] border-white/5" />
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Policy editor</p>
-                        <span className="rounded-full border border-slate-200 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                          {selectedDocument.label}
-                        </span>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">Policy editor</p>
                         {isDirty ? (
-                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+                          <span className="rounded-full border border-amber-300/40 bg-amber-300/15 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-amber-100">
                             Unsaved changes
                           </span>
                         ) : (
-                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100">
+                          <span className="rounded-full border border-emerald-300/40 bg-emerald-300/15 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-emerald-100">
                             Synced
                           </span>
                         )}
                       </div>
-                      <h3 className="mt-2 font-serif text-3xl text-oxford-700 dark:text-slate-100">{selectedDocument.title}</h3>
-                      <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-400">
-                        Edit Markdown on the left and review the rendered result on the right. Use the toolbar to insert common formatting patterns quickly.
+                      <h3 className="mt-2 font-serif text-3xl font-semibold text-white">{selectedDocument.title}</h3>
+                      <p className="mt-2 max-w-3xl text-sm text-slate-300">
+                        Edit the source and review the public result side by side. Changes publish when you save.
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -499,7 +492,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                         type="button"
                         onClick={requestCloseEditor}
                         autoFocus
-                        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        className="relative rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
                       >
                         Cancel
                       </button>
@@ -507,7 +500,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                         type="button"
                         onClick={() => void saveDocument()}
                         disabled={!canSave}
-                        className="inline-flex items-center gap-2 rounded-md border border-oxford-700 bg-oxford-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-oxford-600 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
+                        className="relative inline-flex items-center gap-2 rounded-xl border border-white bg-white px-4 py-2.5 text-sm font-semibold text-oxford-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-white/30 disabled:bg-white/20 disabled:text-slate-400"
                       >
                         {isSaving ? (
                           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -519,7 +512,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-6 py-3 dark:border-slate-800">
+                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50/80 px-6 py-3 dark:border-slate-800 dark:bg-slate-900/60">
                     {Object.entries(MARKDOWN_SNIPPETS).map(([key, value]) => (
                       <button
                         key={key}
@@ -543,7 +536,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                               break;
                           }
                         }}
-                        className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 transition hover:border-oxford-300 hover:text-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-oxford-500 dark:hover:text-slate-100"
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-oxford-300 hover:text-oxford-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-oxford-500 dark:hover:text-slate-100"
                         title={value.label}
                       >
                         {value.label}

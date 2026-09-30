@@ -100,7 +100,7 @@ export async function GET(request: Request): Promise<Response> {
       type: "page",
       title: "Privacy Policy",
       description: "District link shortener privacy guidelines",
-      href: "/privacy-policy",
+      href: "/site/privacy",
       category: "Navigation",
     },
     {
@@ -108,7 +108,7 @@ export async function GET(request: Request): Promise<Response> {
       type: "page",
       title: "Terms of Service",
       description: "CVSD Go acceptable use terms",
-      href: "/terms-of-service",
+      href: "/site/terms",
       category: "Navigation",
     },
   ];

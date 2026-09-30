@@ -25,7 +25,7 @@ export const POLICY_DOCUMENTS: Record<PolicyDocumentKey, PolicyDocumentDefinitio
     key: "terms",
     label: "Terms of Service",
     title: "Terms of Service",
-    route: "/terms-of-service",
+    route: "/site/terms",
     storageKey: "policy_terms_markdown",
     defaultMarkdown: `*Effective date: March 10, 2026*
 
@@ -94,7 +94,7 @@ We may revise these Terms of Service. Material changes will be posted on this pa
     key: "privacy",
     label: "Privacy Policy",
     title: "Privacy Policy",
-    route: "/privacy-policy",
+    route: "/site/privacy",
     storageKey: "policy_privacy_markdown",
     defaultMarkdown: `*Effective date: March 10, 2026*
 

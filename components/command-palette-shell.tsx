@@ -4,12 +4,12 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { CommandPaletteTrigger } from "@/components/command-palette-trigger";
 
-const PublicCommandPalette = dynamic(
-  () => import("@/components/public-command-palette").then((module) => module.PublicCommandPalette),
+const CommandPalette = dynamic(
+  () => import("@/components/command-palette").then((module) => module.CommandPalette),
   { ssr: false }
 );
 
-export function CommandPaletteShell({ isStaff }: { isStaff: boolean }) {
+export function CommandPaletteShell() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isPublicOpen, setIsPublicOpen] = useState(false);
 
@@ -34,7 +34,7 @@ export function CommandPaletteShell({ isStaff }: { isStaff: boolean }) {
     <>
       <CommandPaletteTrigger onOpen={openPalette} />
       {isLoaded && (
-        <PublicCommandPalette open={isPublicOpen} onClose={() => setIsPublicOpen(false)} staffMode={isStaff} />
+        <CommandPalette open={isPublicOpen} onClose={() => setIsPublicOpen(false)} />
       )}
     </>
   );

@@ -2,6 +2,8 @@ import { revalidateTag } from "next/cache";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
+import { auth } from "@clerk/nextjs/server";
+import { getRequestContext, logAuditEvent } from "@/lib/audit";
 
 export async function POST(request: Request): Promise<Response> {
   const authError = await requireAllowedUser();
@@ -32,5 +34,8 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   revalidateTag("redirects");
+  const { userId } = await auth();
+  const context = getRequestContext(request);
+  await logAuditEvent({ action: "Folders reordered", details: `Updated the display order for ${orderedIds.length} folders.`, actorUserId: userId, metadata: { orderedIds }, category: "links", source: "link-folders", actorIpAddress: context.actorIpAddress, actorUserAgent: context.actorUserAgent });
   return Response.json({ ok: true });
 }

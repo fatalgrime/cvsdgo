@@ -3,6 +3,8 @@ import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
 import type { LinkFolderRow } from "@/lib/types";
+import { auth } from "@clerk/nextjs/server";
+import { getRequestContext, logAuditEvent } from "@/lib/audit";
 
 export async function GET(): Promise<Response> {
   const authError = await requireAllowedUser();
@@ -53,6 +55,9 @@ export async function POST(request: Request): Promise<Response> {
     `) as LinkFolderRow[];
 
     revalidateTag("redirects");
+    const { userId } = await auth();
+    const context = getRequestContext(request);
+    await logAuditEvent({ action: "Folder created", details: `Created folder “${name}”.`, actorUserId: userId, metadata: { folderId: rows[0]?.id, name, isPublic }, category: "links", source: "link-folders", actorIpAddress: context.actorIpAddress, actorUserAgent: context.actorUserAgent });
     return Response.json({ folder: rows[0] }, { status: 201 });
   } catch (error) {
     const message = (error as { message?: string }).message ?? "";

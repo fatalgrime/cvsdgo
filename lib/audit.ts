@@ -2,8 +2,11 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { getCachedUserInfo } from "@/lib/access";
 
-type ActorInfo = {
+export type ActorInfo = {
   username: string | null;
+  email: string | null;
+  discordUsername: string | null;
+  discordUserId: string | null;
   hasDiscordAccount: boolean;
   hasLoginAccount: boolean;
 };
@@ -13,6 +16,9 @@ type AuditEventInput = {
   details?: string | null;
   actorUserId?: string | null;
   actorUsername?: string | null;
+  actorEmail?: string | null;
+  actorDiscordUsername?: string | null;
+  actorDiscordUserId?: string | null;
   actorHasDiscordAccount?: boolean;
   actorHasLoginAccount?: boolean;
   metadata?: Record<string, unknown> | null;
@@ -46,13 +52,16 @@ let ensureAuditSchemaPromise: Promise<void> | null = null;
 
 async function getActorInfo(userId?: string | null): Promise<ActorInfo> {
   if (!userId) {
-    return { username: null, hasDiscordAccount: false, hasLoginAccount: false };
+    return { username: null, email: null, discordUsername: null, discordUserId: null, hasDiscordAccount: false, hasLoginAccount: false };
   }
 
   const cached = getCachedUserInfo(userId);
   if (cached) {
     return {
       username: cached.username,
+      email: cached.email,
+      discordUsername: cached.discordUsername,
+      discordUserId: cached.discordUserId,
       hasDiscordAccount: cached.hasDiscordAccount,
       hasLoginAccount: cached.hasLoginAccount,
     };
@@ -62,18 +71,25 @@ async function getActorInfo(userId?: string | null): Promise<ActorInfo> {
     const client = await clerkClient();
     const user = await client.users.getUser(userId);
     const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-    const username = user.username || fullName || user.emailAddresses[0]?.emailAddress || null;
-    const hasDiscordAccount = user.externalAccounts.some((account) =>
-      account.provider.toLowerCase().includes("discord")
-    );
+    const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses[0]?.emailAddress || null;
+    const discordAccount = user.externalAccounts.find((account) => account.provider.toLowerCase().includes("discord"));
+    const discordDetails = discordAccount as unknown as { username?: string | null; providerUserId?: string | null } | undefined;
+    const discordUsername = discordDetails?.username || null;
+    const discordUserId = discordDetails?.providerUserId || null;
+    const username = user.username || discordUsername || fullName || email || null;
+    const hasDiscordAccount = Boolean(discordAccount);
     const hasLoginAccount =
       Boolean((user as { passwordEnabled?: boolean }).passwordEnabled) ||
       user.emailAddresses.length > 0 ||
       user.externalAccounts.length > 0;
-    return { username, hasDiscordAccount, hasLoginAccount };
+    return { username, email, discordUsername, discordUserId, hasDiscordAccount, hasLoginAccount };
   } catch {
-    return { username: null, hasDiscordAccount: false, hasLoginAccount: false };
+    return { username: null, email: null, discordUsername: null, discordUserId: null, hasDiscordAccount: false, hasLoginAccount: false };
   }
+}
+
+export async function resolveAuditActorInfo(userId: string): Promise<ActorInfo> {
+  return getActorInfo(userId);
 }
 
 function normalizeSeverity(severity?: AuditEventInput["severity"]): "info" | "warning" | "critical" {
@@ -148,17 +164,6 @@ async function runEnsureAuditSchema(): Promise<void> {
 
   const sql = getSql();
 
-  try {
-    const check = (await sql`
-      SELECT 1 FROM information_schema.tables WHERE table_name = 'audit_logs' LIMIT 1;
-    `) as unknown[];
-
-    if (check.length > 0) {
-      return;
-    }
-  } catch {
-  }
-
   await sql`
     CREATE TABLE IF NOT EXISTS site_settings (
       setting_key TEXT PRIMARY KEY,
@@ -174,6 +179,9 @@ async function runEnsureAuditSchema(): Promise<void> {
       details TEXT,
       actor_user_id TEXT,
       actor_username TEXT,
+      actor_email TEXT,
+      actor_discord_username TEXT,
+      actor_discord_user_id TEXT,
       actor_has_discord_account BOOLEAN NOT NULL DEFAULT FALSE,
       actor_has_login_account BOOLEAN NOT NULL DEFAULT FALSE,
       actor_ip_address TEXT,
@@ -185,6 +193,10 @@ async function runEnsureAuditSchema(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `;
+
+  await sql`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_email TEXT;`;
+  await sql`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_discord_username TEXT;`;
+  await sql`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_discord_user_id TEXT;`;
 
   await sql`
     CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs(created_at DESC);
@@ -213,6 +225,9 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
 
     const actor = await getActorInfo(input.actorUserId);
     const username = input.actorUsername ?? actor.username;
+    const email = input.actorEmail ?? actor.email;
+    const discordUsername = input.actorDiscordUsername ?? actor.discordUsername;
+    const discordUserId = input.actorDiscordUserId ?? actor.discordUserId;
     const webhookUrl = await getDiscordWebhookUrl();
     const severity = detectSuspiciousActivity(input);
     const details = input.details ?? "No additional details were provided.";
@@ -225,6 +240,9 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
         details,
         actor_user_id,
         actor_username,
+        actor_email,
+        actor_discord_username,
+        actor_discord_user_id,
         actor_has_discord_account,
         actor_has_login_account,
         actor_ip_address,
@@ -239,6 +257,9 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
         ${details},
         ${input.actorUserId ?? null},
         ${username ?? null},
+        ${email ?? null},
+        ${discordUsername ?? null},
+        ${discordUserId ?? null},
         ${input.actorHasDiscordAccount ?? actor.hasDiscordAccount},
         ${input.actorHasLoginAccount ?? actor.hasLoginAccount},
         ${input.actorIpAddress ?? null},
@@ -253,6 +274,14 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
     if (!webhookUrl) return;
 
     const notifyDiscord = shouldNotifyDiscord(input, details);
+    const severityLabel = severity.charAt(0).toUpperCase() + severity.slice(1);
+    const actorLines = [
+      username ? `**Account:** ${username}` : null,
+      email ? `**Email:** ${email}` : null,
+      discordUsername ? `**Discord:** @${discordUsername}` : null,
+      discordUserId ? `**Discord ID:** ${discordUserId}` : null,
+    ].filter(Boolean).join("\n") || "Unknown account";
+    const embedColor = severity === "critical" ? 0xdc2626 : severity === "warning" ? 0xd97706 : 0x1d4ed8;
 
     try {
       await fetch(webhookUrl, {
@@ -262,17 +291,18 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
           allowed_mentions: { parse: [], users: [], roles: [] },
           embeds: [
             {
-              title: `Audit: ${input.action}`,
-              color: notifyDiscord ? 0xef4444 : 0x1d4ed8,
-              description: details,
+              author: { name: "CVSD Go Activity Monitor" },
+              title: input.action,
+              color: notifyDiscord ? embedColor : 0x1d4ed8,
+              description: details.slice(0, 4096),
               fields: [
-                { name: "User", value: username || "Unknown user", inline: true },
-                { name: "Linked to Discord", value: input.actorHasDiscordAccount ?? actor.hasDiscordAccount ? "Yes" : "No", inline: true },
-                { name: "Has login account", value: input.actorHasLoginAccount ?? actor.hasLoginAccount ? "Yes" : "No", inline: true },
-                { name: "Severity", value: severity, inline: true },
-                { name: "Action", value: input.action, inline: false },
-                { name: "Details", value: details, inline: false },
+                { name: "Status", value: severityLabel, inline: true },
+                { name: "Category", value: input.category || "General", inline: true },
+                { name: "Source", value: input.source || "CVSD Go", inline: true },
+                { name: "User", value: actorLines.slice(0, 1024), inline: false },
+                { name: "Account connections", value: `Discord: ${(input.actorHasDiscordAccount ?? actor.hasDiscordAccount) ? "Connected" : "Not connected"}\nLogin: ${(input.actorHasLoginAccount ?? actor.hasLoginAccount) ? "Available" : "Unavailable"}`, inline: false },
               ],
+              footer: { text: "CVSD Go • Administrative activity" },
               timestamp: new Date().toISOString(),
             },
           ],

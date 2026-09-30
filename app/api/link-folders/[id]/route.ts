@@ -3,6 +3,8 @@ import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
 import type { LinkFolderRow } from "@/lib/types";
+import { auth } from "@clerk/nextjs/server";
+import { getRequestContext, logAuditEvent } from "@/lib/audit";
 
 export async function PUT(
   request: Request,
@@ -53,6 +55,9 @@ export async function PUT(
     }
 
     revalidateTag("redirects");
+    const { userId } = await auth();
+    const context = getRequestContext(request);
+    await logAuditEvent({ action: "Folder updated", details: `Updated folder “${rows[0].name}”.`, actorUserId: userId, metadata: { folderId: id, name, isPublic, sortOrder }, category: "links", source: "link-folders", actorIpAddress: context.actorIpAddress, actorUserAgent: context.actorUserAgent });
     return Response.json({ folder: rows[0] });
   } catch (error) {
     const message = (error as { message?: string }).message ?? "";
@@ -64,7 +69,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
   const authError = await requireAllowedUser();
@@ -100,5 +105,8 @@ export async function DELETE(
   }
 
   revalidateTag("redirects");
+  const { userId } = await auth();
+  const context = getRequestContext(request);
+  await logAuditEvent({ action: "Folder deleted", details: `Deleted folder #${id}.`, actorUserId: userId, metadata: { folderId: id }, severity: "warning", category: "links", source: "link-folders", actorIpAddress: context.actorIpAddress, actorUserAgent: context.actorUserAgent });
   return Response.json({ ok: true });
 }

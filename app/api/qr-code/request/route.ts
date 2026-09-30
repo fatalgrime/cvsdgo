@@ -3,6 +3,7 @@ import { getAccessProfile } from "@/lib/access";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureQrSchema } from "@/lib/qr-schema";
 import { ensureLinkSchema } from "@/lib/link-schema";
+import { getRequestContext, logAuditEvent } from "@/lib/audit";
 
 type QrRequestRow = {
   id: number;
@@ -179,6 +180,9 @@ export async function POST(request: Request): Promise<Response> {
     INSERT INTO qr_code_requests (link_slug, user_id, user_email, user_name, status, can_appeal)
     VALUES (${slug}, ${userId}, ${userEmail}, ${userName}, 'pending', true);
   `;
+
+  const context = getRequestContext(request);
+  await logAuditEvent({ action: "QR access requested", details: `Requested QR download access for go.cvsd.live/${slug}.`, actorUserId: userId, actorUsername: userName || null, actorEmail: userEmail || null, metadata: { slug }, category: "qr-access", source: "qr-request", actorIpAddress: context.actorIpAddress, actorUserAgent: context.actorUserAgent });
 
   return Response.json({ status: "pending", message: "Request submitted for admin review" });
 }

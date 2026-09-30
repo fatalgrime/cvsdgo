@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { isReportStaffUser } from "@/lib/access";
+import { getRequestContext, logAuditEvent } from "@/lib/audit";
 
 type ReportCommentInsertRow = {
   id: number;
@@ -45,6 +46,9 @@ export async function POST(
     VALUES (${id}, ${userId}, ${authorName}, ${comment})
     RETURNING id, report_id, author_user_id, author_name, body, created_at;
   `) as ReportCommentInsertRow[];
+
+  const context = getRequestContext(request);
+  await logAuditEvent({ action: "Report comment added", details: `Added a staff comment to report #${id}.`, actorUserId: userId, actorUsername: authorName, metadata: { reportId: id, commentId: rows[0]?.id }, category: "support", source: "report-comments", actorIpAddress: context.actorIpAddress, actorUserAgent: context.actorUserAgent });
 
   return Response.json({ comment: rows[0] }, { status: 201 });
 }
