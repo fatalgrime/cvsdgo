@@ -28,6 +28,9 @@ const EMPTY_FOLDER_FORM = {
   isPublic: true,
 };
 
+const PAGE_SIZE = 20;
+type LinkStatusFilter = "all" | "active" | "locked" | "scheduled" | "expired";
+
 type LinkPayload = {
   slug: string;
   url: string;
@@ -51,19 +54,11 @@ export default function LinkManagerPage() {
   const [isFolderReordering, setIsFolderReordering] = useState(false);
   const [movingLinkId, setMovingLinkId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<RedirectRow | null>(null);
-  const [qrRequests, setQrRequests] = useState<Array<{
-    id: number;
-    link_slug: string;
-    user_id: string;
-    user_email: string | null;
-    user_name: string | null;
-    status: "pending" | "accepted" | "declined";
-    admin_reason: string | null;
-    can_appeal: boolean;
-    created_at: string;
-  }>>([]);
-  const [declineReasonMap, setDeclineReasonMap] = useState<Record<number, string>>({});
-  const [declineAppealMap, setDeclineAppealMap] = useState<Record<number, boolean>>({});
+  const [query, setQuery] = useState("");
+  const [folderFilter, setFolderFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<LinkStatusFilter>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [foldersExpanded, setFoldersExpanded] = useState(false);
 
   const { isSignedIn } = useAuth();
   const { toast } = useToast();
@@ -101,13 +96,38 @@ export default function LinkManagerPage() {
     });
   }, [folders]);
 
+  const filteredLinks = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const now = Date.now();
+    return sortedLinks.filter((link) => {
+      const matchesQuery = !normalizedQuery || [link.slug, link.description, link.url, link.folder_name]
+        .some((value) => value?.toLowerCase().includes(normalizedQuery));
+      const matchesFolder = folderFilter === "all"
+        || (folderFilter === "none" ? !link.folder_id : String(link.folder_id) === folderFilter);
+      const releaseTime = link.release_at ? new Date(link.release_at).getTime() : null;
+      const expiryTime = link.expires_at ? new Date(link.expires_at).getTime() : null;
+      const isScheduled = releaseTime !== null && releaseTime > now;
+      const isExpired = expiryTime !== null && expiryTime <= now;
+      const matchesStatus = statusFilter === "all"
+        || (statusFilter === "locked" && Boolean(link.is_locked))
+        || (statusFilter === "scheduled" && isScheduled)
+        || (statusFilter === "expired" && isExpired)
+        || (statusFilter === "active" && !isScheduled && !isExpired);
+      return matchesQuery && matchesFolder && matchesStatus;
+    });
+  }, [folderFilter, query, sortedLinks, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLinks.length / PAGE_SIZE));
+  const paginatedLinks = filteredLinks.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const lockedCount = links.filter((link) => link.is_locked).length;
+  const totalClicks = links.reduce((sum, link) => sum + (link.click_count ?? 0), 0);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [linksResponse, foldersResponse, qrResponse] = await Promise.all([
+      const [linksResponse, foldersResponse] = await Promise.all([
         fetch("/api/links"),
         fetch("/api/link-folders"),
-        fetch("/api/admin/qr-requests").catch(() => null),
       ]);
 
       if (!linksResponse.ok) {
@@ -120,11 +140,6 @@ export default function LinkManagerPage() {
       const [linksData, foldersData] = await Promise.all([linksResponse.json(), foldersResponse.json()]);
       setLinks(linksData.links ?? []);
       setFolders(foldersData.folders ?? []);
-
-      if (qrResponse && qrResponse.ok) {
-        const qrData = await qrResponse.json();
-        setQrRequests(qrData.requests ?? []);
-      }
     } catch (error) {
       const message = (error as Error).message || "Unable to load link manager data.";
       toast({ title: "Unable to load data", description: message, variant: "error" });
@@ -132,40 +147,6 @@ export default function LinkManagerPage() {
       setIsLoading(false);
     }
   }, [toast]);
-
-  async function handleReviewQrRequest(requestId: number, status: "accepted" | "declined") {
-    const adminReason = declineReasonMap[requestId] || "";
-    const canAppeal = declineAppealMap[requestId] !== false;
-
-    try {
-      const response = await fetch("/api/admin/qr-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId, status, adminReason, canAppeal }),
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      toast({
-        title: `Request ${status}`,
-        description: `QR Code download access request #${requestId} ${status}.`,
-        variant: "success",
-      });
-      setQrRequests((prev) =>
-        prev.map((r) =>
-          r.id === requestId
-            ? { ...r, status, admin_reason: adminReason || null, can_appeal: canAppeal }
-            : r
-        )
-      );
-    } catch (error) {
-      toast({
-        title: "Review error",
-        description: (error as Error).message || "Failed to update request status.",
-        variant: "error",
-      });
-    }
-  }
 
   useEffect(() => {
     if (isSignedIn) {
@@ -216,6 +197,23 @@ export default function LinkManagerPage() {
 
   function resetForm() {
     setForm(EMPTY_FORM);
+  }
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, folderFilter, statusFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  async function copyShortLink(slug: string) {
+    try {
+      await navigator.clipboard.writeText(`https://go.cvsd.live/${slug}`);
+      toast({ title: "Link copied", description: `go.cvsd.live/${slug}`, variant: "success" });
+    } catch {
+      toast({ title: "Unable to copy link", description: "Copy the URL from your browser instead.", variant: "error" });
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -308,6 +306,7 @@ export default function LinkManagerPage() {
           password: "",
           releaseAt: link.release_at ? new Date(link.release_at).toISOString() : null,
           expiresAt: link.expires_at ? new Date(link.expires_at).toISOString() : null,
+          qrCodeAccessEnabled: Boolean(link.qr_code_access_enabled),
         }),
       });
 
@@ -451,7 +450,7 @@ export default function LinkManagerPage() {
 
   return (
     <section className="space-y-5">
-      <PageHeader eyebrow="Administration" title="Manage Short Links" description="Create folders, control public visibility, and assign links to groups." />
+      <PageHeader eyebrow="Administration" title="Link Manager" description="Create, organize, protect, and monitor every CVSD Go short link from one workspace." />
 
       <SignedOut>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30">
@@ -466,17 +465,36 @@ export default function LinkManagerPage() {
       </SignedOut>
 
       <SignedIn>
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { label: "Total links", value: links.length, detail: "Managed destinations" },
+            { label: "Total visits", value: totalClicks.toLocaleString(), detail: "Recorded redirects" },
+            { label: "Locked", value: lockedCount, detail: "Password protected" },
+            { label: "Folders", value: folders.length, detail: `${folders.filter((folder) => folder.is_public).length} public` },
+          ].map((stat) => (
+            <div key={stat.label} className="panel px-4 py-4 sm:px-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{stat.label}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-oxford-700 dark:text-slate-100">{stat.value}</p>
+              <p className="mt-0.5 text-xs text-slate-500">{stat.detail}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-5">
-            <div className="panel p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-base font-semibold text-oxford-700 dark:text-slate-100">Existing Links</h2>
+            <div className="panel overflow-hidden">
+              <div className="border-b border-slate-200 p-4 dark:border-slate-800 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-oxford-700 dark:text-slate-100">All links</h2>
+                    <p className="mt-0.5 text-xs text-slate-500">{filteredLinks.length} of {links.length} links shown</p>
+                  </div>
                 <button
                   type="button"
                   onClick={loadData}
                   aria-label="Refresh links"
                   title="Refresh links"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-oxford-700 transition hover:border-oxford-400 dark:border-slate-700 dark:text-slate-300"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-oxford-700 shadow-sm transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                 >
                   <svg
                     aria-hidden="true"
@@ -491,11 +509,33 @@ export default function LinkManagerPage() {
                     <path d="M20 11a8 8 0 1 0-2.34 5.66" />
                     <path d="M20 4v7h-7" />
                   </svg>
+                  Refresh
                 </button>
+                </div>
+
+                <div className="mt-4 grid gap-2 md:grid-cols-[minmax(220px,1fr)_180px_160px]">
+                  <label className="relative block">
+                    <span className="sr-only">Search links</span>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name, URL, slug, or folder…" className="h-10 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-oxford-500 focus:ring-2 focus:ring-oxford-500/15 dark:border-slate-700 dark:bg-slate-900" />
+                  </label>
+                  <select aria-label="Filter by folder" value={folderFilter} onChange={(event) => setFolderFilter(event.target.value)} className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm text-oxford-700 outline-none focus:border-oxford-500 focus:ring-2 focus:ring-oxford-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                    <option value="all">All folders</option>
+                    <option value="none">No folder</option>
+                    {sortedFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+                  </select>
+                  <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as LinkStatusFilter)} className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm text-oxford-700 outline-none focus:border-oxford-500 focus:ring-2 focus:ring-oxford-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                    <option value="all">All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="locked">Locked</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="expired">Expired</option>
+                  </select>
+                </div>
               </div>
 
               {isLoading ? (
-                <div className="mt-4 space-y-2">
+                <div className="space-y-2 p-4 sm:p-5">
                   {[0, 1, 2].map((i) => (
                     <div key={i} className="animate-pulse rounded-xl border border-slate-100 p-3 dark:border-slate-800">
                       <div className="h-3 w-32 rounded bg-slate-200 dark:bg-slate-700" />
@@ -504,67 +544,62 @@ export default function LinkManagerPage() {
                   ))}
                 </div>
               ) : (
-                <motion.ul layout className="mt-4 space-y-4 text-sm text-oxford-700">
+                <motion.ul layout className="divide-y divide-slate-200 text-sm text-oxford-700 dark:divide-slate-800">
                   <AnimatePresence initial={false}>
-                    {sortedLinks.map((link) => (
+                    {paginatedLinks.map((link) => (
                       <motion.li
                         key={link.id}
                         layout
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -12 }}
                         transition={{ duration: 0.2 }}
-                        className="rounded-2xl border border-slate-200 p-5 bg-white dark:bg-slate-900 dark:border-slate-800 shadow-sm"
+                        className={`p-4 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/50 sm:p-5 ${form.id === link.id ? "bg-oxford-50/70 ring-1 ring-inset ring-oxford-200 dark:bg-oxford-900/20 dark:ring-oxford-700" : ""}`}
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-deepforest-700 dark:text-deepforest-400">
-                              go.cvsd.live/{link.slug}
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <button type="button" onClick={() => void copyShortLink(link.slug)} className="group inline-flex min-w-0 items-center gap-1.5 rounded-lg font-mono text-sm font-semibold text-oxford-700 outline-none hover:text-oxford-500 focus-visible:ring-2 focus-visible:ring-oxford-500 dark:text-slate-100" title="Copy short link">
+                                <span className="truncate">go.cvsd.live/{link.slug}</span>
+                                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-slate-400 transition group-hover:text-oxford-500" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>
+                              </button>
                               {link.is_locked && (
-                                <span className="ml-2 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+                                <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
                                   Locked
                                 </span>
                               )}
                               {link.folder_name && (
-                                <span className="ml-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                                   {link.folder_name}
                                   {link.folder_is_public === false ? " (Private)" : ""}
                                 </span>
                               )}
-                              {link.qr_code_access_enabled ? (
-                                <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
-                                  Direct QR Allowed
-                                </span>
-                              ) : (
-                                <span className="ml-2 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-400">
-                                  QR Request Required
-                                </span>
-                              )}
-                            </p>
-                            <p className="mt-1 text-sm text-oxford-700 dark:text-slate-200">{link.description || link.url}</p>
-                            <p className="mt-0.5 text-xs text-slate-500">{link.url}</p>
+                            </div>
+                            <p className="mt-1 truncate text-sm font-medium text-oxford-700 dark:text-slate-200">{link.description || "Untitled link"}</p>
+                            <p className="mt-0.5 truncate text-xs text-slate-500">{link.url}</p>
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                              <span>{(link.click_count ?? 0).toLocaleString()} visits</span>
+                              <span>{link.qr_code_access_enabled ? "Direct QR downloads" : "QR approval required"}</span>
                             {(link.release_at || link.expires_at) && (
-                              <p className="mt-2 text-xs text-slate-500">
+                              <span className="contents">
                                 {formatDisplayDate(link.release_at) && (
-                                  <span className="mr-3">Release: {formatDisplayDate(link.release_at)}</span>
+                                  <span>Releases {formatDisplayDate(link.release_at)}</span>
                                 )}
                                 {formatDisplayDate(link.expires_at) && (
-                                  <span>Expires: {formatDisplayDate(link.expires_at)}</span>
+                                  <span>Expires {formatDisplayDate(link.expires_at)}</span>
                                 )}
-                              </p>
+                              </span>
                             )}
-                            <div className="mt-3 max-w-xs">
-                              <label
-                                className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400"
-                                htmlFor={`move-folder-${link.id}`}
-                              >
-                                Move To Folder
-                              </label>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
+                            <div className="w-full sm:w-40">
                               <select
+                                aria-label={`Move ${link.slug} to folder`}
                                 id={`move-folder-${link.id}`}
                                 value={link.folder_id ? String(link.folder_id) : ""}
                                 disabled={movingLinkId === link.id}
                                 onChange={(event) => moveLinkToFolder(link, event.target.value)}
-                                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                               >
                                 <option value="">No folder</option>
                                 {sortedFolders.map((folder) => (
@@ -574,23 +609,24 @@ export default function LinkManagerPage() {
                                 ))}
                               </select>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <QrCodeDialog slug={link.slug} description={link.description ?? undefined} url={link.url} />
+                            <div className="flex items-center gap-1.5">
+                              <QrCodeDialog slug={link.slug} description={link.description ?? undefined} url={link.url} />
                             <button
                               type="button"
                               onClick={() => startEdit(link)}
-                              className="rounded-lg border border-oxford-700 bg-oxford-700 px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white transition hover:bg-oxford-600"
+                              className="h-9 rounded-lg border border-oxford-700 bg-oxford-700 px-3 text-xs font-semibold text-white transition hover:bg-oxford-600"
                             >
                               Edit
                             </button>
                             <button
                               type="button"
                               onClick={() => setPendingDelete(link)}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-700 dark:bg-slate-900"
+                              aria-label={`Delete ${link.slug}`}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-700 dark:bg-slate-900"
                             >
-                              Delete
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"/></svg>
                             </button>
+                            </div>
                           </div>
                         </div>
                       </motion.li>
@@ -598,12 +634,40 @@ export default function LinkManagerPage() {
                   </AnimatePresence>
                 </motion.ul>
               )}
+
+              {!isLoading && filteredLinks.length === 0 && (
+                <div className="px-5 py-12 text-center">
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.15-1.15"/></svg></div>
+                  <p className="mt-3 text-sm font-semibold text-oxford-700 dark:text-slate-100">No links match these filters</p>
+                  <button type="button" onClick={() => { setQuery(""); setFolderFilter("all"); setStatusFilter("all"); }} className="mt-2 text-xs font-semibold text-deepforest-700 hover:underline dark:text-deepforest-300">Clear filters</button>
+                </div>
+              )}
+
+              {!isLoading && filteredLinks.length > PAGE_SIZE && (
+                <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 dark:border-slate-800 sm:px-5">
+                  <p className="text-xs text-slate-500">Page {currentPage} of {totalPages}</p>
+                  <div className="flex gap-2">
+                    <button type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900">Previous</button>
+                    <button type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900">Next</button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="panel p-5">
-              <h2 className="text-base font-semibold text-oxford-700 dark:text-slate-100">Folders</h2>
+            <div className="panel overflow-hidden">
+              <button type="button" onClick={() => setFoldersExpanded((expanded) => !expanded)} className="flex w-full items-center justify-between gap-3 p-5 text-left">
+                <span>
+                  <span className="block text-base font-semibold text-oxford-700 dark:text-slate-100">Folder organization</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">Create, reorder, and control directory visibility for {folders.length} folder{folders.length === 1 ? "" : "s"}.</span>
+                </span>
+                <svg aria-hidden="true" viewBox="0 0 24 24" className={`h-5 w-5 shrink-0 text-slate-500 transition-transform ${foldersExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
 
-              <form className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]" onSubmit={createFolder}>
+              <AnimatePresence initial={false}>
+              {foldersExpanded && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden border-t border-slate-200 dark:border-slate-800">
+              <div className="p-5 pt-4">
+              <form className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]" onSubmit={createFolder}>
                 <input
                   value={folderForm.name}
                   onChange={(event) => setFolderForm((current) => ({ ...current, name: event.target.value }))}
@@ -666,110 +730,25 @@ export default function LinkManagerPage() {
                   </li>
                 )}
               </ul>
+              </div>
+              </motion.div>
+              )}
+              </AnimatePresence>
             </div>
 
-            {/* QR Code Access Requests Management Panel */}
-            <div className="panel p-5 mt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-semibold text-oxford-700 dark:text-slate-100">QR Code Access Requests</h2>
-                  <p className="text-xs text-slate-500">Review pending QR code download requests from users and visitors</p>
-                </div>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {qrRequests.filter((r) => r.status === "pending").length} Pending
-                </span>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {qrRequests.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-xs text-slate-400 dark:border-slate-800">
-                    No download access requests submitted yet.
-                  </div>
-                ) : (
-                  qrRequests.map((req) => (
-                    <div
-                      key={req.id}
-                      className="rounded-xl border border-slate-200 bg-white p-4 text-xs shadow-sm dark:border-slate-800 dark:bg-slate-900"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <span className="font-mono font-bold text-oxford-700 dark:text-slate-100">
-                            go.cvsd.live/{req.link_slug}
-                          </span>
-                          <span className="ml-2 text-slate-500">
-                            by {req.user_name || req.user_email || req.user_id}
-                          </span>
-                        </div>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${req.status === "accepted"
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                              : req.status === "declined"
-                                ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                            }`}
-                        >
-                          {req.status}
-                        </span>
-                      </div>
-
-                      {req.status === "pending" && (
-                        <div className="mt-3 space-y-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800">
-                          <input
-                            type="text"
-                            placeholder="Optional reason for decision (e.g. Requires staff verification)"
-                            value={declineReasonMap[req.id] || ""}
-                            onChange={(e) =>
-                              setDeclineReasonMap((prev) => ({ ...prev, [req.id]: e.target.value }))
-                            }
-                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                          />
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <label className="inline-flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400">
-                              <input
-                                type="checkbox"
-                                checked={declineAppealMap[req.id] !== false}
-                                onChange={(e) =>
-                                  setDeclineAppealMap((prev) => ({ ...prev, [req.id]: e.target.checked }))
-                                }
-                                className="h-3.5 w-3.5 rounded border-slate-300 text-oxford-700"
-                              />
-                              Eligible for Vantor Trust & Safety appeal
-                            </label>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleReviewQrRequest(req.id, "accepted")}
-                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleReviewQrRequest(req.id, "declined")}
-                                className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-500"
-                              >
-                                Decline
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {req.status === "declined" && req.admin_reason && (
-                        <p className="mt-2 text-[11px] text-rose-700 dark:text-rose-400">
-                          <strong>Reason:</strong> {req.admin_reason}{" "}
-                          {req.can_appeal ? "(Eligible to appeal)" : "(Ineligible for appeal)"}
-                        </p>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
           </div>
 
-          <div className="panel p-5">
-            <h2 className="text-base font-semibold text-oxford-700 dark:text-slate-100">{isEditing ? "Edit Link" : "Create New Link"}</h2>
+          <div className="panel overflow-hidden xl:sticky xl:top-24">
+            <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/50">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-deepforest-700 dark:text-deepforest-400">{isEditing ? "Editing link" : "New short link"}</p>
+                  <h2 className="mt-1 text-lg font-semibold text-oxford-700 dark:text-slate-100">{isEditing ? `go.cvsd.live/${form.slug}` : "Create a link"}</h2>
+                </div>
+                {isEditing && <button type="button" onClick={resetForm} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Cancel</button>}
+              </div>
+            </div>
+            <div className="p-5">
             <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500" htmlFor="slug">Slug</label>
@@ -858,6 +837,7 @@ export default function LinkManagerPage() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       </SignedIn>

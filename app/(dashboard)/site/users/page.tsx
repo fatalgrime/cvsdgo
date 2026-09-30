@@ -895,6 +895,13 @@ export default function UsersPage() {
                     user.allowlisted ||
                     (user.metadataAdmin && user.id === currentUserId) ||
                     (user.metadataAdmin && user.admin && !currentUserAllowlisted);
+                  const reportStaffToggleDisabled = isBusy || user.admin;
+                  const protectedRoleTitle = user.allowlisted
+                    ? "Protected role granted automatically by the allowlist"
+                    : undefined;
+                  const reportStaffTitle = protectedRoleTitle ?? (user.admin
+                    ? "Report staff access is included with Admin"
+                    : "Toggle report staff access");
 
                   return (
                     <motion.li
@@ -954,17 +961,17 @@ export default function UsersPage() {
                           <ToggleSwitch
                             id={`admin-${user.id}`}
                             label="Admin"
-                            checked={user.metadataAdmin}
+                            checked={user.allowlisted ? user.admin : user.metadataAdmin}
                             disabled={adminToggleDisabled}
-                            title={user.allowlisted ? "Granted automatically via allowlist" : "Toggle admin access"}
+                            title={protectedRoleTitle ?? "Toggle admin access"}
                             onChange={(next) => void updateRoles(user, { admin: next })}
                           />
                           <ToggleSwitch
                             id={`reports-${user.id}`}
                             label="Reports"
-                            checked={user.metadataReportStaff}
-                            disabled={isBusy}
-                            title="Toggle report staff access"
+                            checked={user.admin ? user.reportStaff : user.metadataReportStaff}
+                            disabled={reportStaffToggleDisabled}
+                            title={reportStaffTitle}
                             onChange={(next) => void updateRoles(user, { reportStaff: next })}
                           />
                         </div>
@@ -1015,15 +1022,17 @@ export default function UsersPage() {
                             <ToggleSwitch
                               id={`mobile-admin-${user.id}`}
                               label="Admin access"
-                              checked={user.metadataAdmin}
+                              checked={user.allowlisted ? user.admin : user.metadataAdmin}
                               disabled={adminToggleDisabled}
+                              title={protectedRoleTitle}
                               onChange={(next) => void updateRoles(user, { admin: next })}
                             />
                             <ToggleSwitch
                               id={`mobile-reports-${user.id}`}
                               label="Report staff"
-                              checked={user.metadataReportStaff}
-                              disabled={isBusy}
+                              checked={user.admin ? user.reportStaff : user.metadataReportStaff}
+                              disabled={reportStaffToggleDisabled}
+                              title={reportStaffTitle}
                               onChange={(next) => void updateRoles(user, { reportStaff: next })}
                             />
                           </div>

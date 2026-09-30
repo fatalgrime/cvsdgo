@@ -233,6 +233,12 @@ export async function PATCH(
   }
 
   if (Object.keys(roleUpdate).length > 0) {
+    if (targetAccess.allowlisted) {
+      return new Response("Allowlisted users have protected roles that cannot be changed", { status: 403 });
+    }
+    if (roleUpdate.reportStaff !== undefined && targetAccess.admin && roleUpdate.admin !== false) {
+      return new Response("Report staff access is inherited from Admin and cannot be changed separately", { status: 400 });
+    }
     if (roleUpdate.admin === false && id === userId) {
       return new Response("You cannot remove your own admin privileges", { status: 400 });
     }
