@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type KeyboardEventHandler, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEventHandler, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 type AccessibleDialogProps = {
   open: boolean;
@@ -38,9 +39,13 @@ export function AccessibleDialog({
   onKeyDown,
   zIndexClassName = "z-[200]",
 }: AccessibleDialogProps) {
+  const [portalReady, setPortalReady] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => setPortalReady(true), []);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -97,27 +102,41 @@ export function AccessibleDialog({
     };
   }, [open]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!portalReady || typeof document === "undefined") return null;
 
   return createPortal(
-    <div
-      className={`modal-backdrop ${zIndexClassName} flex justify-center px-4 ${align === "top" ? "items-start pt-16 sm:pt-24" : "items-center"} ${backdropClassName}`}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={ariaLabel}
-        tabIndex={-1}
-        onKeyDown={onKeyDown}
-        className={panelClassName}
-      >
-        {children}
-      </div>
-    </div>,
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="dialog-backdrop"
+          data-animated-dialog="true"
+          className={`modal-backdrop ${zIndexClassName} flex justify-center px-4 ${align === "top" ? "items-start pt-16 sm:pt-24" : "items-center"} ${backdropClassName}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) onClose();
+          }}
+        >
+          <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={ariaLabel}
+            tabIndex={-1}
+            onKeyDown={onKeyDown}
+            className={`modal-panel ${panelClassName}`}
+            initial={reduceMotion ? false : { opacity: 0, y: align === "top" ? -10 : 10, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: align === "top" ? -6 : 8, scale: 0.99 }}
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   );
 }

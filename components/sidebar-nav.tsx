@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
+import { useAccessProfile } from "@/components/access-provider";
 
 type SidebarItem = {
   href: string;
@@ -16,12 +16,12 @@ type SidebarNavProps = {
 };
 
 export function SidebarNav({ items }: SidebarNavProps) {
-  const { isSignedIn } = useAuth();
+  const { authenticated } = useAccessProfile();
   const pathname = usePathname();
   const [badgeCount, setBadgeCount] = useState<number>(0);
 
   const fetchBadgeCount = useCallback(async () => {
-    if (!isSignedIn) {
+    if (!authenticated) {
       setBadgeCount(0);
       return;
     }
@@ -34,7 +34,7 @@ export function SidebarNav({ items }: SidebarNavProps) {
     } catch {
       // ignore error
     }
-  }, [isSignedIn]);
+  }, [authenticated]);
 
   useEffect(() => {
     fetchBadgeCount();
@@ -55,7 +55,7 @@ export function SidebarNav({ items }: SidebarNavProps) {
     };
   }, [fetchBadgeCount]);
 
-  const visibleItems = items.filter((item) => !item.requiresAuth || isSignedIn);
+  const visibleItems = items.filter((item) => !item.requiresAuth || authenticated);
 
   return (
     <ul className="mt-5 flex-1 space-y-2 text-sm text-oxford-700 dark:text-slate-100">

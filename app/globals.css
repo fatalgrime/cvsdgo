@@ -41,6 +41,61 @@ body {
   width: auto;
   height: auto;
   min-height: 100dvh;
+  isolation: isolate;
+  will-change: opacity;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout paint;
+}
+
+.modal-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+.modal-panel {
+  position: relative;
+  z-index: 1;
+  will-change: transform, opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.modal-backdrop:not([data-animated-dialog]) {
+  animation: modal-backdrop-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.modal-backdrop:not([data-animated-dialog]) > [role="dialog"],
+.modal-backdrop:not([data-animated-dialog]) > [role="alertdialog"] {
+  animation: modal-panel-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+@keyframes modal-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-panel-enter {
+  from { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal-panel {
+    scroll-behavior: auto;
+  }
+
+  .modal-backdrop:not([data-animated-dialog]),
+  .modal-backdrop:not([data-animated-dialog]) > [role="dialog"],
+  .modal-backdrop:not([data-animated-dialog]) > [role="alertdialog"] {
+    animation-duration: 1ms;
+  }
 }
 
 .dark body {

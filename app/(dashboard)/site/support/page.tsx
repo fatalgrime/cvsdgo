@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
+import { SignInButton } from "@clerk/nextjs";
 import { useToast } from "@/components/toast-provider";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useAccessProfile } from "@/components/access-provider";
 import type { ReportCommentRow, ReportRow } from "@/lib/types";
 import { validateContentWithAutoModSync } from "@/lib/automod";
 
@@ -36,13 +37,14 @@ const EMPTY_REPORT = {
 };
 
 export default function SupportPage() {
-  const { isSignedIn } = useAuth();
+  const access = useAccessProfile();
+  const isSignedIn = access.authenticated;
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"reports" | "qr-requests">("reports");
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [comments, setComments] = useState<ReportCommentRow[]>([]);
   const [qrRequests, setQrRequests] = useState<QrRequestItem[]>([]);
-  const [isStaff, setIsStaff] = useState(false);
+  const [isStaff, setIsStaff] = useState(access.canManageLinks || access.canManageReports);
   const [isLoading, setIsLoading] = useState(true);
   const [isQrLoading, setIsQrLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -290,7 +292,7 @@ export default function SupportPage() {
         </p>
       </div>
 
-      <SignedOut>
+      {!isSignedIn && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30">
           <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Sign in required</p>
           <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">Create an account or sign in to submit and manage your reports and permission requests.</p>
@@ -300,9 +302,10 @@ export default function SupportPage() {
             </button>
           </SignInButton>
         </div>
-      </SignedOut>
+      )}
 
-      <SignedIn>
+      {isSignedIn && (
+      <>
         {!isStaff && (
           <div className="grid gap-3 sm:grid-cols-3" aria-label="Available support options">
             {[
@@ -710,7 +713,8 @@ export default function SupportPage() {
             )}
           </div>
         )}
-      </SignedIn>
+      </>
+      )}
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}

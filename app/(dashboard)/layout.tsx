@@ -8,6 +8,7 @@ import { SidebarNav } from "@/components/sidebar-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPaletteShell } from "@/components/command-palette-shell";
 import { MobileNav } from "@/components/mobile-nav";
+import { AccessProvider } from "@/components/access-provider";
 
 const SettingsDialog = dynamic(() => import("@/components/settings-dialog").then((mod) => mod.SettingsDialog));
 
@@ -27,6 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
+    <AccessProvider profile={{ authenticated: Boolean(userId), ...access }}>
     <main className="min-h-screen">
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/80">
         <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
@@ -72,5 +74,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <section className="pb-10 min-w-0">{children}</section>
       </div>
     </main>
+    </AccessProvider>
   );
 }

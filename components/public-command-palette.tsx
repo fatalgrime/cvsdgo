@@ -40,6 +40,8 @@ export function PublicCommandPalette({ open, onClose, staffMode = false }: Publi
   useEffect(() => {
     if (!open) return;
     setQuery("");
+    setResults(EMPTY_RESULTS);
+    setIsLoading(true);
     const frame = window.requestAnimationFrame(() => inputRef.current?.focus());
     return () => window.cancelAnimationFrame(frame);
   }, [open]);
@@ -99,32 +101,35 @@ export function PublicCommandPalette({ open, onClose, staffMode = false }: Publi
       ariaLabel="Search CVSD Go"
       zIndexClassName="z-[100]"
       align="top"
-      panelClassName="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+      backdropClassName="bg-slate-950/55 backdrop-blur-md"
+      panelClassName="w-full max-w-2xl overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl dark:border-slate-700/80 dark:bg-slate-950"
     >
-      <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3.5 dark:border-slate-800">
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2">
+      <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/70 sm:px-5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-oxford-700 text-white shadow-sm">
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.35-4.35" />
         </svg>
+        </span>
         <input
           ref={inputRef}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search links and pages"
+          placeholder={staffMode ? "Search links, pages, or run an AI Action" : "Search links and pages"}
           aria-label="Search links and pages"
-          className="min-w-0 flex-1 bg-transparent text-base text-oxford-700 outline-none placeholder:text-slate-400 dark:text-slate-100"
+          className="min-w-0 flex-1 bg-transparent text-base font-medium text-oxford-700 outline-none placeholder:font-normal placeholder:text-slate-400 dark:text-slate-100"
         />
-        <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
-          Close
+        <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+          ESC
         </button>
       </div>
 
-      <div className="max-h-[min(65vh,34rem)] overflow-y-auto p-2">
+      <div className="max-h-[min(65vh,34rem)] overflow-y-auto p-2.5 sm:p-3">
         {isLoading && <p className="px-3 py-4 text-sm text-slate-500" role="status">Searching…</p>}
         {!isLoading && results.blockedByAutoMod && (
           <p className="px-3 py-4 text-sm text-rose-700 dark:text-rose-300">This search could not be completed.</p>
         )}
-        {!isLoading && !results.blockedByAutoMod && items.length === 0 && (
+        {!isLoading && !results.blockedByAutoMod && items.length === 0 && results.aiAdminActions.length === 0 && results.actions.length === 0 && (
           <p className="px-3 py-8 text-center text-sm text-slate-500">No matching links or pages.</p>
         )}
         {!isLoading && items.map((item) => (
@@ -146,16 +151,23 @@ export function PublicCommandPalette({ open, onClose, staffMode = false }: Publi
           </button>
         ))}
         {!isLoading && staffMode && results.aiAdminActions.length > 0 && (
-          <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-800">
-            <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Staff tools</p>
+          <div className="mt-2 border-t border-slate-200 pt-3 dark:border-slate-800">
+            <div className="flex items-center justify-between px-3 pb-2">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700 dark:text-indigo-300">
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 10.2 8.2 5 10l5.2 1.8L12 17l1.8-5.2L19 10l-5.2-1.8z"/><path d="m5 16-.7 2.3L2 19l2.3.7L5 22l.7-2.3L8 19l-2.3-.7z"/></svg>
+                AI Actions
+              </p>
+              <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">No API key required</span>
+            </div>
             {results.aiAdminActions.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => { setAdminAction(item.actionType); setAdminWorkflowKey((key) => key + 1); onClose(); }}
-                className="flex w-full items-start rounded-xl px-3 py-3 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxford-500 dark:hover:bg-slate-900"
+                className="group flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition hover:border-indigo-100 hover:bg-indigo-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:border-indigo-900/60 dark:hover:bg-indigo-950/30"
               >
-                <span><span className="block text-sm font-semibold text-oxford-700 dark:text-slate-100">{item.title}</span><span className="mt-0.5 block text-xs text-slate-500">{item.description}</span></span>
+                <span><span className="block text-sm font-semibold text-oxford-700 dark:text-slate-100">{item.title}</span><span className="mt-0.5 block text-xs leading-5 text-slate-500">{item.description}</span></span>
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-indigo-400 transition group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
               </button>
             ))}
           </div>
@@ -167,6 +179,10 @@ export function PublicCommandPalette({ open, onClose, staffMode = false }: Publi
             ))}
           </div>
         )}
+      </div>
+      <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/80 px-4 py-2.5 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
+        <span>Start typing to filter results</span>
+        <span className="hidden sm:inline">CVSD Go unified search</span>
       </div>
     </AccessibleDialog>
     {adminAction && <AdminCommandWorkflow key={adminWorkflowKey} initialActionType={adminAction} />}

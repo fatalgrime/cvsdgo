@@ -5,6 +5,7 @@ import { SignInButton, useUser } from "@clerk/nextjs";
 import { useToast } from "@/components/toast-provider";
 import { generateQrSvgDataUri } from "@/lib/qr-generator";
 import { AccessibleDialog } from "@/components/accessible-dialog";
+import { useAccessProfile } from "@/components/access-provider";
 
 type QrCodeDialogProps = {
   slug: string;
@@ -25,22 +26,25 @@ type RequestStatusPayload = {
 };
 
 export function QrCodeDialog({ slug, description, triggerButton, initiallyOpen = false }: QrCodeDialogProps) {
+  const access = useAccessProfile();
+  const hasStaffAccess = access.canManageLinks || access.canManageReports;
   const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [includeLogo, setIncludeLogo] = useState(true);
   const [reqState, setReqState] = useState<RequestStatusPayload>({
     status: "none",
-    directAccess: false,
-    canDownload: false,
+    directAccess: hasStaffAccess,
+    canDownload: hasStaffAccess,
     adminReason: null,
     canAppeal: false,
     qrCodeAccessEnabled: false,
-    isAuthenticated: false,
+    isAuthenticated: access.authenticated,
   });
+  const [isStatusLoading, setIsStatusLoading] = useState(true);
   const [isSubmittingReq, setIsSubmittingReq] = useState(false);
   const [showAppealModal, setShowAppealModal] = useState(false);
   const [copiedAppealTemplate, setCopiedAppealTemplate] = useState(false);
 
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
   const { toast } = useToast();
 
   const shortLinkUrl = `https://go.cvsd.live/${slug}`;
@@ -49,6 +53,7 @@ export function QrCodeDialog({ slug, description, triggerButton, initiallyOpen =
     if (!isOpen) return;
 
     async function checkStatus() {
+      setIsStatusLoading(true);
       try {
         const response = await fetch(`/api/qr-code/request?slug=${encodeURIComponent(slug)}`);
         if (response.ok) {
@@ -57,6 +62,8 @@ export function QrCodeDialog({ slug, description, triggerButton, initiallyOpen =
         }
       } catch (error) {
         console.error("Failed to check QR status:", error);
+      } finally {
+        setIsStatusLoading(false);
       }
     }
 
@@ -64,7 +71,7 @@ export function QrCodeDialog({ slug, description, triggerButton, initiallyOpen =
   }, [isOpen, slug]);
 
   async function handleRequestAccess() {
-    if (!user) {
+    if (!access.authenticated) {
       toast({
         title: "Sign in required",
         description: "All users must be signed in to submit a permission request.",
@@ -101,7 +108,7 @@ export function QrCodeDialog({ slug, description, triggerButton, initiallyOpen =
   }
 
   function handleDownloadSvg() {
-    if (!user && !reqState.canDownload) {
+    if (!access.authenticated && !reqState.canDownload) {
       toast({ title: "Sign in required", description: "All users must be signed in to download a QR code.", variant: "error" });
       return;
     }
@@ -116,7 +123,7 @@ export function QrCodeDialog({ slug, description, triggerButton, initiallyOpen =
   }
 
   function handleDownloadPng() {
-    if (!user && !reqState.canDownload) {
+    if (!access.authenticated && !reqState.canDownload) {
       toast({ title: "Sign in required", description: "All users must be signed in to download a QR code.", variant: "error" });
       return;
     }
@@ -169,7 +176,7 @@ Status: Agree`;
     setTimeout(() => setCopiedAppealTemplate(false), 2000);
   }
 
-  const isSignedOut = isLoaded && !user;
+  const isSignedOut = !access.authenticated;
 
   return (
     <>
@@ -253,7 +260,13 @@ Status: Agree`;
 
                   {/* Authorization & Download Workflow */}
                   <div className="mt-5 space-y-3">
-                    {isSignedOut ? (
+                    {isStatusLoading ? (
+                      <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60" role="status" aria-label="Checking QR code access">
+                        <div className="h-3 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                        <div className="h-3 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                        <div className="h-9 w-full animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+                      </div>
+                    ) : isSignedOut ? (
                       <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
                         <p className="text-sm font-semibold">Sign In Required</p>
                         <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">

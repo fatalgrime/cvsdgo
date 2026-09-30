@@ -955,8 +955,9 @@ export function CommandPalette({ initialActionType }: { initialActionType?: Admi
         ariaLabel="Command palette search"
         zIndexClassName="z-[100]"
         align="top"
+        backdropClassName="bg-slate-950/55 backdrop-blur-md"
         onKeyDown={handleModalKeyDown}
-        panelClassName="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+        panelClassName="w-full max-w-2xl overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl dark:border-slate-700/80 dark:bg-slate-950"
       >
                   {/* --- Search Bar Input Header --- */}
                   <div className="relative border-b border-slate-200 px-4 py-3.5 dark:border-slate-800">
@@ -1665,7 +1666,9 @@ export function CommandPalette({ initialActionType }: { initialActionType?: Admi
                         </span>
                       </div>
                     )}
-                    <span>CVSD Go Search v2</span>
+                    <span className={aiMode ? "font-semibold text-indigo-600 dark:text-indigo-300" : ""}>
+                      {aiMode ? "CVSD Go AI Actions" : "CVSD Go unified search"}
+                    </span>
                   </div>
       </AccessibleDialog>
     </>
