@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/toast-provider";
+import { PageHeader } from "@/components/page-header";
 
 type Severity = "info" | "warning" | "critical";
 
@@ -122,23 +123,7 @@ export default function StatusPage() {
 
   return (
     <section className="space-y-5">
-      <div className="relative overflow-hidden rounded-3xl bg-oxford-700 px-6 py-7 text-white shadow-lg md:px-8">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border-[36px] border-white/5" />
-        <div className="relative flex flex-wrap items-end justify-between gap-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Administration</p>
-            <h1 className="mt-2 font-serif text-3xl font-semibold md:text-4xl">System activity</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Monitor application health and review administrative events with account-level context.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-slate-300 sm:block">{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Waiting for data"}</span>
-            <button type="button" onClick={() => void loadStatus(true)} disabled={isRefreshing} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-60">
-              <svg aria-hidden="true" viewBox="0 0 24 24" className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
+      <PageHeader eyebrow="Administration" title="System Activity" description="Monitor application health and review administrative events with account-level context." />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (
@@ -155,7 +140,13 @@ export default function StatusPage() {
           <div className="border-b border-slate-200 p-4 dark:border-slate-800 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="text-lg font-semibold text-oxford-700 dark:text-slate-100">Activity log</h2><p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Auto-refreshes every 30 seconds.</p></div>
-              <span className="text-xs font-semibold text-slate-500">{filteredLogs.length} of {auditLogs.length} events</span>
+              <div className="flex items-center gap-3">
+                <span className="hidden text-xs text-slate-500 sm:block">{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : `${filteredLogs.length} of ${auditLogs.length} events`}</span>
+                <button type="button" onClick={() => void loadStatus(true)} disabled={isRefreshing} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-oxford-400 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
+                  Refresh
+                </button>
+              </div>
             </div>
             <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_10rem_11rem]">
               <label className="relative"><span className="sr-only">Search activity</span><svg aria-hidden="true" viewBox="0 0 24 24" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search actions, people, or details" className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-oxford-600 focus:ring-2 focus:ring-oxford-600/15 dark:border-slate-700 dark:bg-slate-900"/></label>

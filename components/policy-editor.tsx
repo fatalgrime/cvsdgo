@@ -23,6 +23,8 @@ type PolicyEditorProps = {
 };
 
 type ActiveStage = "selection" | "loading" | "editor";
+type WorkspaceView = "split" | "source" | "preview";
+type SplitRatio = "source-wide" | "balanced" | "preview-wide";
 
 function handleDialogKeys(event: React.KeyboardEvent<HTMLDivElement>, onClose: () => void) {
   if (event.key === "Escape") {
@@ -108,6 +110,9 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [loadMessage, setLoadMessage] = useState("Preparing editor...");
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("split");
+  const [splitRatio, setSplitRatio] = useState<SplitRatio>("balanced");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const { toast } = useToast();
 
@@ -117,6 +122,13 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
 
   const isDirty = useMemo(() => normalizeMarkdown(markdown) !== normalizeMarkdown(originalMarkdown), [markdown, originalMarkdown]);
   const canSave = storageAvailable && !isSaving && getMeaningfulMarkdown(markdown);
+  const workspaceGridClass = workspaceView !== "split"
+    ? "grid-cols-1"
+    : splitRatio === "source-wide"
+      ? "grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
+      : splitRatio === "preview-wide"
+        ? "grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+        : "grid-cols-1 lg:grid-cols-2";
 
   useEffect(() => {
     if (!isSelectionOpen) {
@@ -223,6 +235,9 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
     setFetchError(null);
     setLoadMessage("Preparing editor...");
     setConfirmState({ open: false, reason: "discard" });
+    setIsFullscreen(false);
+    setWorkspaceView("split");
+    setSplitRatio("balanced");
   }
 
   function insertSnippet(snippet: string, selectionOffset?: [number, number]) {
@@ -451,21 +466,22 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
 
             {selection.stage === "editor" && selectedDocument && (
               <motion.div
-                className="modal-backdrop z-[140] flex items-center justify-center bg-slate-950/65 px-4 py-6 backdrop-blur-sm"
+                className={`modal-backdrop z-[140] flex items-center justify-center bg-slate-950/65 backdrop-blur-sm ${isFullscreen ? "p-0" : "px-4 py-6"}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="flex h-[calc(100vh-3rem)] w-full max-w-7xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+                  layout
+                  className={`flex w-full flex-col overflow-hidden border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 ${isFullscreen ? "h-dvh max-w-none rounded-none border-0" : "h-[calc(100vh-3rem)] max-w-7xl rounded-[28px]"}`}
                   initial={{ opacity: 0, scale: 0.97, y: 18 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, y: 18 }}
-                  transition={{ duration: 0.24 }}
+                  transition={{ duration: 0.24, layout: { duration: 0.24, ease: [0.22, 1, 0.36, 1] } }}
                   role="dialog"
                   aria-modal="true"
                   aria-label={`Edit ${selectedDocument.label}`}
-                  onKeyDown={(event) => handleDialogKeys(event, requestCloseEditor)}
+                  onKeyDown={(event) => handleDialogKeys(event, () => isFullscreen ? setIsFullscreen(false) : requestCloseEditor())}
                 >
                   <div className="relative flex flex-wrap items-start justify-between gap-4 overflow-hidden border-b border-oxford-600 bg-oxford-700 px-6 py-5 text-white">
                     <div className="pointer-events-none absolute -right-12 -top-20 h-44 w-44 rounded-full border-[26px] border-white/5" />
@@ -490,6 +506,17 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
+                        onClick={() => setIsFullscreen((current) => !current)}
+                        className="relative inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+                        title={isFullscreen ? "Exit full screen" : "Open full screen"}
+                      >
+                        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          {isFullscreen ? <><path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6"/></> : <><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></>}
+                        </svg>
+                        <span className="hidden sm:inline">{isFullscreen ? "Exit full screen" : "Full screen"}</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={requestCloseEditor}
                         autoFocus
                         className="relative rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
@@ -512,8 +539,10 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50/80 px-6 py-3 dark:border-slate-800 dark:bg-slate-900/60">
-                    {Object.entries(MARKDOWN_SNIPPETS).map(([key, value]) => (
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60 sm:px-6">
+                    <div className="flex flex-wrap items-center gap-2" aria-label="Markdown formatting tools">
+                      <span className="mr-1 hidden text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 xl:inline">Insert</span>
+                      {Object.entries(MARKDOWN_SNIPPETS).map(([key, value]) => (
                       <button
                         key={key}
                         type="button"
@@ -541,11 +570,26 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                       >
                         {value.label}
                       </button>
-                    ))}
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2" aria-label="Workspace controls">
+                      <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                        {([['source', 'Write'], ['split', 'Split'], ['preview', 'Preview']] as const).map(([value, label]) => (
+                          <button key={value} type="button" onClick={() => setWorkspaceView(value)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${workspaceView === value ? "bg-oxford-700 text-white" : "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}>{label}</button>
+                        ))}
+                      </div>
+                      {workspaceView === "split" && (
+                        <select value={splitRatio} onChange={(event) => setSplitRatio(event.target.value as SplitRatio)} aria-label="Adjust editor pane sizes" className="rounded-xl border border-slate-200 bg-white py-2 pl-3 text-xs font-semibold text-slate-600 shadow-sm outline-none focus:border-oxford-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                          <option value="source-wide">More writing space</option>
+                          <option value="balanced">Equal panes</option>
+                          <option value="preview-wide">Larger preview</option>
+                        </select>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
-                    <div className="flex min-h-0 flex-col border-b border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-950 lg:border-b-0 lg:border-r">
+                  <div className={`grid min-h-0 flex-1 ${workspaceGridClass}`}>
+                    {workspaceView !== "preview" && <div className={`flex min-h-0 flex-col bg-slate-50/70 dark:bg-slate-950 ${workspaceView === "split" ? "border-b border-slate-200 dark:border-slate-800 lg:border-b-0 lg:border-r" : ""}`}>
                       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Markdown source</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">{markdown.trim().split(/\n+/).length} lines</p>
@@ -555,22 +599,22 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                         value={markdown}
                         onChange={(event) => setMarkdown(event.target.value)}
                         spellCheck
-                        className="min-h-0 flex-1 resize-none bg-transparent px-5 py-4 font-mono text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
+                        className="min-h-[22rem] flex-1 resize-none bg-transparent px-5 py-5 font-mono text-sm leading-7 text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
                         placeholder="Write the policy in Markdown..."
                       />
-                    </div>
+                    </div>}
 
-                    <div className="flex min-h-0 flex-col">
+                    {workspaceView !== "source" && <div className="flex min-h-0 flex-col">
                       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Live preview</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Rendered as Markdown</p>
                       </div>
-                      <div className="min-h-0 flex-1 overflow-y-auto bg-white px-5 py-5 dark:bg-slate-950">
+                      <div className="min-h-[22rem] flex-1 overflow-y-auto bg-white px-5 py-6 dark:bg-slate-950 sm:px-8">
                         <article className="mx-auto max-w-3xl space-y-5">
                           <PolicyMarkdown markdown={markdown} className="space-y-4" />
                         </article>
                       </div>
-                    </div>
+                    </div>}
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-4 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-400">

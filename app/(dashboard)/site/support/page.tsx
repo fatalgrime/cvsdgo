@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useAccessProfile } from "@/components/access-provider";
 import type { ReportCommentRow, ReportRow } from "@/lib/types";
 import { validateContentWithAutoModSync } from "@/lib/automod";
+import { PageHeader } from "@/components/page-header";
 
 type ReportResponse = {
   reports: ReportRow[];
@@ -282,15 +283,11 @@ export default function SupportPage() {
 
   return (
     <section className="space-y-5">
-      <div className="panel-strong overflow-hidden p-6 md:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700 dark:text-deepforest-400">{isStaff ? "Support & Administration" : "CVSD Go Support"}</p>
-        <h1 className="mt-2 font-serif text-3xl leading-tight text-oxford-700 dark:text-slate-100 md:text-4xl">{isStaff ? "Submissions & Requests" : "Reports, Feedback & QR Access"}</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-400">
-          {isStaff
-            ? "Manage problem reports, user feedback, and QR code access permission requests across CVSD Go."
-            : "Report a problem, share feedback, and track your QR code download permission requests."}
-        </p>
-      </div>
+      <PageHeader
+        eyebrow={isStaff ? "Support & Administration" : "CVSD Go Support"}
+        title={isStaff ? "Submissions & Requests" : "Reports, Feedback & QR Access"}
+        description={isStaff ? "Manage problem reports, user feedback, and QR code access permission requests across CVSD Go." : "Report a problem, share feedback, and track your QR code download permission requests."}
+      />
 
       {!isSignedIn && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30">

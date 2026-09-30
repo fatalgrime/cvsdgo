@@ -8,6 +8,7 @@ import { useToast } from "@/components/toast-provider";
 import { AccessibleDialog } from "@/components/accessible-dialog";
 import { RolePill, StatusBadge, ToggleSwitch, UserAvatar, type ManagedUser } from "@/components/user-management-primitives";
 import type { ReportCommentRow, ReportRow } from "@/lib/types";
+import { PageHeader } from "@/components/page-header";
 
 type ReportingProfile = {
   reportBanType: string;
@@ -752,14 +753,7 @@ export default function UsersPage() {
 
   return (
     <section className="space-y-5">
-      {/* Page header */}
-      <div className="panel-strong overflow-hidden p-6 md:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700 dark:text-deepforest-400">Administration</p>
-        <h1 className="mt-2 font-serif text-3xl leading-tight text-oxford-700 dark:text-slate-100 md:text-4xl">User Management</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
-          Manage accounts, permissions, and report moderation settings.
-        </p>
-      </div>
+      <PageHeader eyebrow="Administration" title="User Management" description="Manage accounts, permissions, and report moderation settings." />
 
       <SignedOut>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30">

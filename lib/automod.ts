@@ -159,17 +159,6 @@ export async function validateContentWithAutoMod(text: string): Promise<AutoModR
         };
       }
 
-      // Check for hidden profanity in compound words if length >= 4 and not whitelisted
-      if (term.length >= 4 && word.includes(term)) {
-        const isWhitelisted = SAFE_WHITELIST.some((safe) => safe.includes(word) || word.includes(safe));
-        if (!isWhitelisted) {
-          return {
-            isClean: false,
-            blockedTerm: term,
-            reason: `Content contains inappropriate or profane language blocked by AutoMod ("${term}").`,
-          };
-        }
-      }
     }
   }
 
@@ -217,16 +206,6 @@ export function validateContentWithAutoModSync(text: string): AutoModResult {
         };
       }
 
-      if (term.length >= 4 && word.includes(term)) {
-        const isWhitelisted = SAFE_WHITELIST.some((safe) => safe.includes(word) || word.includes(safe));
-        if (!isWhitelisted) {
-          return {
-            isClean: false,
-            blockedTerm: term,
-            reason: `Content contains inappropriate or profane language blocked by AutoMod ("${term}").`,
-          };
-        }
-      }
     }
   }
 

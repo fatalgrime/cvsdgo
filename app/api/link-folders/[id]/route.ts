@@ -5,6 +5,7 @@ import { ensureLinkSchema } from "@/lib/link-schema";
 import type { LinkFolderRow } from "@/lib/types";
 import { auth } from "@clerk/nextjs/server";
 import { getRequestContext, logAuditEvent } from "@/lib/audit";
+import { validateContentWithAutoMod } from "@/lib/automod";
 
 export async function PUT(
   request: Request,
@@ -27,6 +28,10 @@ export async function PUT(
 
   if (name !== undefined && !name) {
     return new Response("Folder name is required", { status: 400 });
+  }
+  if (name !== undefined) {
+    const moderation = await validateContentWithAutoMod(name);
+    if (!moderation.isClean) return new Response("Inappropriate language was detected in this response.", { status: 400 });
   }
 
   if (sortOrder !== undefined && Number.isNaN(sortOrder)) {

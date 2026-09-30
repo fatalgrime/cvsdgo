@@ -17,6 +17,7 @@ import {
   detectAdminActionIntent,
   type AdminActionType,
 } from "@/lib/ai-admin-actions";
+import { validateContentWithAutoModSync } from "@/lib/automod";
 
 type SelectableItem =
   | SearchAdminActionItem
@@ -127,6 +128,7 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [aiInput, setAiInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [contentSafetyBlocked, setContentSafetyBlocked] = useState(false);
   const [createdResultLink, setCreatedResultLink] = useState<string | null>(null);
 
   // Data collections for workflows
@@ -206,6 +208,7 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
       setAiInput("");
       setChatHistory([]);
       setErrorMessage(null);
+      setContentSafetyBlocked(false);
       setCreatedResultLink(null);
       setTimeout(() => {
         inputRef.current?.focus();
@@ -275,6 +278,7 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
     setStepIndex(0);
     setAiInput("");
     setErrorMessage(null);
+    setContentSafetyBlocked(false);
     setCreatedResultLink(null);
     void loadAdminResources();
 
@@ -373,6 +377,7 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
     setAiInput("");
     setChatHistory([]);
     setErrorMessage(null);
+    setContentSafetyBlocked(false);
     setCreatedResultLink(null);
     setTimeout(() => inputRef.current?.focus(), 50);
   };
@@ -428,6 +433,14 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
     const text = userText.trim();
     if (!text && aiState === "conversing") return;
 
+    const moderation = validateContentWithAutoModSync(text);
+    if (!moderation.isClean) {
+      setContentSafetyBlocked(true);
+      setErrorMessage("Inappropriate language was detected in this response.");
+      return;
+    }
+
+    setContentSafetyBlocked(false);
     setErrorMessage(null);
 
     // Append User Message to history
@@ -794,6 +807,23 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
 
   // --- Confirm and Execute Action Backend Request ---
   const executeAdminAction = async () => {
+    const actionContent = aiMode === "create-link"
+      ? [createData.slug, createData.url, createData.title, createData.folderName].join(" ")
+      : aiMode === "update-link"
+        ? [updateData.slug, updateData.newUrl, updateData.newTitle, updateData.newFolderName].join(" ")
+        : aiMode === "create-folder"
+          ? createFolderData.name
+          : aiMode === "move-link"
+            ? [moveData.slug, moveData.targetFolderName].join(" ")
+            : deleteData.slug;
+    const moderation = validateContentWithAutoModSync(actionContent);
+    if (!moderation.isClean) {
+      setContentSafetyBlocked(true);
+      setErrorMessage("Inappropriate language was detected in this response.");
+      return;
+    }
+
+    setContentSafetyBlocked(false);
     setAiState("executing");
     setErrorMessage(null);
 
@@ -1234,8 +1264,19 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
 
                             {/* Error Message Box */}
                             {errorMessage && (
-                              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
-                                ⚠️ {errorMessage}
+                              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200" role={contentSafetyBlocked ? "alert" : "status"}>
+                                <div className="flex items-start gap-2.5">
+                                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200">
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold">{errorMessage}</p>
+                                    {contentSafetyBlocked && <p className="mt-1 text-xs font-normal text-rose-700 dark:text-rose-300">Revise the response and submit it again.</p>}
+                                  </div>
+                                  {contentSafetyBlocked && (
+                                    <button type="button" onClick={() => { setContentSafetyBlocked(false); setErrorMessage(null); requestAnimationFrame(() => inputRef.current?.focus()); }} className="shrink-0 rounded-lg border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-200">Try again</button>
+                                  )}
+                                </div>
                               </div>
                             )}
 

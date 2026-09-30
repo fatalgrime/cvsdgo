@@ -7,6 +7,7 @@ import type { LinkFolderRow, RedirectRow } from "@/lib/types";
 import { useToast } from "@/components/toast-provider";
 import { QrCodeDialog } from "@/components/qr-code-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { PageHeader } from "@/components/page-header";
 import { validateContentWithAutoModSync } from "@/lib/automod";
 
 const EMPTY_FORM = {
@@ -450,13 +451,7 @@ export default function LinkManagerPage() {
 
   return (
     <section className="space-y-5">
-      <div className="panel-strong overflow-hidden p-6 md:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700 dark:text-deepforest-400">Administration</p>
-        <h1 className="mt-2 font-serif text-3xl leading-tight text-oxford-700 dark:text-slate-100 md:text-4xl">Manage Short Links</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-400">
-          Create folders, control public visibility, and assign links to groups.
-        </p>
-      </div>
+      <PageHeader eyebrow="Administration" title="Manage Short Links" description="Create folders, control public visibility, and assign links to groups." />
 
       <SignedOut>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30">

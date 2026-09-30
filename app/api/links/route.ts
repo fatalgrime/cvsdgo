@@ -126,7 +126,7 @@ export async function POST(request: Request): Promise<Response> {
   // AutoMod Validation
   const autoModResult = await validateContentWithAutoMod(`${slug} ${description ?? ""} ${url}`);
   if (!autoModResult.isClean) {
-    return new Response(autoModResult.reason || "Content blocked by AutoMod", { status: 400 });
+    return new Response("Inappropriate language was detected in this response.", { status: 400 });
   }
 
   if (body.folderId !== null && body.folderId !== undefined && folderId === null) {
