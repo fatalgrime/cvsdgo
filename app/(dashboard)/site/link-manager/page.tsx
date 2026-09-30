@@ -31,6 +31,13 @@ const EMPTY_FOLDER_FORM = {
 const PAGE_SIZE = 20;
 type LinkStatusFilter = "all" | "active" | "locked" | "scheduled" | "expired";
 
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat(undefined, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 type LinkPayload = {
   slug: string;
   url: string;
@@ -465,16 +472,16 @@ export default function LinkManagerPage() {
       </SignedOut>
 
       <SignedIn>
-        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { label: "Total links", value: links.length, detail: "Managed destinations" },
-            { label: "Total visits", value: totalClicks.toLocaleString(), detail: "Recorded redirects" },
-            { label: "Locked", value: lockedCount, detail: "Password protected" },
-            { label: "Folders", value: folders.length, detail: `${folders.filter((folder) => folder.is_public).length} public` },
+            { label: "Total links", value: String(links.length), fullValue: String(links.length), detail: "Managed destinations" },
+            { label: "Total visits", value: formatCompactNumber(totalClicks), fullValue: totalClicks.toLocaleString(), detail: "Recorded redirects" },
+            { label: "Locked", value: String(lockedCount), fullValue: String(lockedCount), detail: "Password protected" },
+            { label: "Folders", value: String(folders.length), fullValue: String(folders.length), detail: `${folders.filter((folder) => folder.is_public).length} public` },
           ].map((stat) => (
-            <div key={stat.label} className="panel px-4 py-4 sm:px-5">
+            <div key={stat.label} className="panel min-w-0 overflow-hidden px-4 py-4 sm:px-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{stat.label}</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-oxford-700 dark:text-slate-100">{stat.value}</p>
+              <p className="mt-1 truncate text-2xl font-semibold tabular-nums text-oxford-700 dark:text-slate-100" title={stat.fullValue}>{stat.value}</p>
               <p className="mt-0.5 text-xs text-slate-500">{stat.detail}</p>
             </div>
           ))}
@@ -513,18 +520,18 @@ export default function LinkManagerPage() {
                 </button>
                 </div>
 
-                <div className="mt-4 grid gap-2 md:grid-cols-[minmax(220px,1fr)_180px_160px]">
-                  <label className="relative block">
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <label className="relative col-span-2 block">
                     <span className="sr-only">Search links</span>
                     <svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                     <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name, URL, slug, or folder…" className="h-10 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-oxford-500 focus:ring-2 focus:ring-oxford-500/15 dark:border-slate-700 dark:bg-slate-900" />
                   </label>
-                  <select aria-label="Filter by folder" value={folderFilter} onChange={(event) => setFolderFilter(event.target.value)} className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm text-oxford-700 outline-none focus:border-oxford-500 focus:ring-2 focus:ring-oxford-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                  <select aria-label="Filter by folder" value={folderFilter} onChange={(event) => setFolderFilter(event.target.value)} className="h-10 min-w-0 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-oxford-700 outline-none focus:border-oxford-500 focus:ring-2 focus:ring-oxford-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
                     <option value="all">All folders</option>
                     <option value="none">No folder</option>
                     {sortedFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
                   </select>
-                  <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as LinkStatusFilter)} className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm text-oxford-700 outline-none focus:border-oxford-500 focus:ring-2 focus:ring-oxford-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                  <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as LinkStatusFilter)} className="h-10 min-w-0 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-oxford-700 outline-none focus:border-oxford-500 focus:ring-2 focus:ring-oxford-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
                     <option value="all">All statuses</option>
                     <option value="active">Active</option>
                     <option value="locked">Locked</option>
@@ -555,7 +562,7 @@ export default function LinkManagerPage() {
                         transition={{ duration: 0.2 }}
                         className={`p-4 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/50 sm:p-5 ${form.id === link.id ? "bg-oxford-50/70 ring-1 ring-inset ring-oxford-200 dark:bg-oxford-900/20 dark:ring-oxford-700" : ""}`}
                       >
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-col gap-4">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <button type="button" onClick={() => void copyShortLink(link.slug)} className="group inline-flex min-w-0 items-center gap-1.5 rounded-lg font-mono text-sm font-semibold text-oxford-700 outline-none hover:text-oxford-500 focus-visible:ring-2 focus-visible:ring-oxford-500 dark:text-slate-100" title="Copy short link">
@@ -591,15 +598,15 @@ export default function LinkManagerPage() {
                             )}
                             </div>
                           </div>
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
-                            <div className="w-full sm:w-40">
+                          <div className="flex min-w-0 flex-col gap-2 border-t border-slate-100 pt-3 dark:border-slate-800 sm:flex-row sm:items-center">
+                            <div className="w-full min-w-0 sm:max-w-56 sm:flex-1">
                               <select
                                 aria-label={`Move ${link.slug} to folder`}
                                 id={`move-folder-${link.id}`}
                                 value={link.folder_id ? String(link.folder_id) : ""}
                                 disabled={movingLinkId === link.id}
                                 onChange={(event) => moveLinkToFolder(link, event.target.value)}
-                                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                className="h-10 w-full rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                               >
                                 <option value="">No folder</option>
                                 {sortedFolders.map((folder) => (
@@ -609,12 +616,12 @@ export default function LinkManagerPage() {
                                 ))}
                               </select>
                             </div>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex shrink-0 items-center gap-1.5 sm:ml-auto">
                               <QrCodeDialog slug={link.slug} description={link.description ?? undefined} url={link.url} />
                             <button
                               type="button"
                               onClick={() => startEdit(link)}
-                              className="h-9 rounded-lg border border-oxford-700 bg-oxford-700 px-3 text-xs font-semibold text-white transition hover:bg-oxford-600"
+                              className="h-10 rounded-lg border border-oxford-700 bg-oxford-700 px-3 text-xs font-semibold text-white transition hover:bg-oxford-600"
                             >
                               Edit
                             </button>
@@ -622,7 +629,7 @@ export default function LinkManagerPage() {
                               type="button"
                               onClick={() => setPendingDelete(link)}
                               aria-label={`Delete ${link.slug}`}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-700 dark:bg-slate-900"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-700 dark:bg-slate-900"
                             >
                               <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"/></svg>
                             </button>
