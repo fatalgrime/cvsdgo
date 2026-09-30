@@ -13,25 +13,20 @@ export async function GET(): Promise<Response> {
   const profile = await getAccessProfile(userId);
   const isStaff = profile.admin || profile.reportStaff || profile.canManageLinks || profile.canManageReports;
 
-  // Non-admin/non-staff users must not see the notification badge or count
-  if (!isStaff) {
-    return Response.json({ count: 0, pendingQrCount: 0, openReportsCount: 0, isStaff: false });
-  }
-
   try {
     const sql = getSql();
     await Promise.all([ensureQrSchema(), ensureReportSchema()]);
 
     const [qrRows, reportRows] = await Promise.all([
-      sql`SELECT COUNT(*)::int AS count FROM qr_code_requests WHERE status = 'pending';`,
-      sql`SELECT COUNT(*)::int AS count FROM reports WHERE status IN ('open', 'investigating');`,
+      sql`SELECT COUNT(*)::int AS count FROM qr_code_requests WHERE status = 'pending' AND (${isStaff} OR user_id = ${userId});`,
+      sql`SELECT COUNT(*)::int AS count FROM reports WHERE status IN ('open', 'investigating') AND (${isStaff} OR user_id = ${userId});`,
     ]);
 
     const pendingQrCount = (qrRows as Array<{ count: number }>)[0]?.count ?? 0;
     const openReportsCount = (reportRows as Array<{ count: number }>)[0]?.count ?? 0;
     const count = pendingQrCount + openReportsCount;
 
-    return Response.json({ count, pendingQrCount, openReportsCount, isStaff: true });
+    return Response.json({ count, pendingQrCount, openReportsCount, isStaff });
   } catch (error) {
     console.error("Error fetching submissions count:", error);
     return Response.json({ count: 0, pendingQrCount: 0, openReportsCount: 0, isStaff: false });

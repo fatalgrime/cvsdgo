@@ -24,6 +24,30 @@ type PolicyEditorProps = {
 
 type ActiveStage = "selection" | "loading" | "editor";
 
+function handleDialogKeys(event: React.KeyboardEvent<HTMLDivElement>, onClose: () => void) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    onClose();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const focusable = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>(
+      "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])"
+    )
+  );
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 type SelectionState = {
   stage: ActiveStage;
   documentKey: PolicyDocumentKey | null;
@@ -77,6 +101,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
   const [isSelectionOpen, setIsSelectionOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [storageAvailable, setStorageAvailable] = useState(true);
+  const [availableDocuments, setAvailableDocuments] = useState<Record<PolicyDocumentKey, StoredPolicyDocument> | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<StoredPolicyDocument | null>(null);
   const [markdown, setMarkdown] = useState("");
   const [originalMarkdown, setOriginalMarkdown] = useState("");
@@ -114,6 +139,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
         }
 
         setStorageAvailable(Boolean(data.storageAvailable));
+        setAvailableDocuments(data.documents);
       } catch (error) {
         if (!active) {
           return;
@@ -146,6 +172,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
       }
 
       const data = (await response.json()) as PolicyDocumentsResponse;
+      setAvailableDocuments(data.documents);
       const document = data.documents[key];
 
       if (!document) {
@@ -321,18 +348,22 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+                  className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
                   initial={{ opacity: 0, scale: 0.96, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 10 }}
                   transition={{ duration: 0.2 }}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Choose a policy document to edit"
+                  onKeyDown={(event) => handleDialogKeys(event, closeSelectionDialog)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Policies</p>
                       <h3 className="mt-2 font-serif text-2xl text-oxford-700 dark:text-slate-100">Choose a document to edit</h3>
-                      <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                        Select the policy you want to update. The editor will load the current content and open in a split markdown workspace.
+                      <p className="mt-2 max-w-xl text-sm text-slate-600 dark:text-slate-400">
+                        Choose a public document below. You’ll see its current source and last update before opening the split editor.
                       </p>
                     </div>
                     <button
@@ -340,31 +371,46 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                       onClick={closeSelectionDialog}
                       className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-semibold text-oxford-700 transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                       aria-label="Close policy selection"
+                      autoFocus
                     >
                       ×
                     </button>
                   </div>
 
-                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <div className="mt-6 space-y-3">
                     {(Object.keys(POLICY_DOCUMENTS) as PolicyDocumentKey[]).map((key) => {
                       const definition = POLICY_DOCUMENTS[key];
+                      const document = availableDocuments?.[key];
                       return (
                         <button
                           key={key}
                           type="button"
                           onClick={() => void openPolicyEditor(key)}
-                          className="group rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-oxford-300 hover:bg-white dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-oxford-500 dark:hover:bg-slate-900"
+                          className="group flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-left transition hover:-translate-y-0.5 hover:border-oxford-400 hover:bg-white hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxford-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-oxford-500 dark:hover:bg-slate-900"
                         >
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{definition.label}</p>
-                            <span className="rounded-full border border-slate-300 px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                              Edit
+                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-oxford-200 bg-oxford-50 text-oxford-700 transition group-hover:border-oxford-300 group-hover:bg-oxford-100 dark:border-oxford-800 dark:bg-oxford-950/50 dark:text-oxford-200">
+                            {key === "privacy" ? (
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3 5 6v5c0 4.6 2.9 8.4 7 10 4.1-1.6 7-5.4 7-10V6l-7-3Z"/><path d="M9.5 12 11 13.5l3.5-4"/></svg>
+                            ) : (
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 11h6M9 15h6"/></svg>
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="text-base font-semibold text-oxford-700 dark:text-slate-100">{definition.title}</span>
+                              <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${document?.isDefault ? "border-slate-300 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"}`}>
+                                {document?.isDefault ? "Default content" : "Customized"}
+                              </span>
                             </span>
-                          </div>
-                          <p className="mt-3 text-lg font-semibold text-oxford-700 dark:text-slate-100">{definition.title}</p>
-                          <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                            Open the markdown editor for this document, with live preview and validation before saving.
-                          </p>
+                            <span className="mt-1 block truncate text-sm text-slate-500 dark:text-slate-400">{definition.route}</span>
+                            <span className="mt-1 block text-xs text-slate-400">
+                              {document?.updatedAt ? `Last updated ${new Date(document.updatedAt).toLocaleString()}` : "No saved revision yet"}
+                            </span>
+                          </span>
+                          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-oxford-600 dark:text-oxford-300">
+                            Edit
+                            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+                          </span>
                         </button>
                       );
                     })}
@@ -392,6 +438,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 10 }}
                   transition={{ duration: 0.2 }}
+                  role="status"
+                  aria-live="polite"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full border border-oxford-200 bg-oxford-50 text-oxford-700 dark:border-oxford-900/60 dark:bg-oxford-950/40 dark:text-oxford-200">
                     <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 animate-spin" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -419,6 +467,10 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, y: 18 }}
                   transition={{ duration: 0.24 }}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`Edit ${selectedDocument.label}`}
+                  onKeyDown={(event) => handleDialogKeys(event, requestCloseEditor)}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
                     <div>
@@ -446,6 +498,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                       <button
                         type="button"
                         onClick={requestCloseEditor}
+                        autoFocus
                         className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                       >
                         Cancel
@@ -554,6 +607,10 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 10 }}
                   transition={{ duration: 0.2 }}
+                  role="alertdialog"
+                  aria-modal="true"
+                  aria-label="Discard unsaved policy changes"
+                  onKeyDown={(event) => handleDialogKeys(event, () => setConfirmState({ open: false, reason: "discard" }))}
                 >
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Discard changes?</p>
                   <h3 className="mt-2 font-serif text-2xl text-oxford-700 dark:text-slate-100">You have unsaved edits</h3>
@@ -564,6 +621,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                     <button
                       type="button"
                       onClick={() => setConfirmState({ open: false, reason: "discard" })}
+                      autoFocus
                       className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     >
                       Keep editing

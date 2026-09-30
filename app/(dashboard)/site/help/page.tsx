@@ -1,6 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
 import { isAllowedUser } from "@/lib/access";
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Help",
+  description: "Guidance for finding, sharing, and managing CVSD Go links.",
+  alternates: { canonical: "/site/help" },
+};
 
 export default async function HelpPage() {
   const { userId } = await auth();

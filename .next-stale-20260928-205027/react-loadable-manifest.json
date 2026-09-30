@@ -1,0 +1,48 @@
+{
+  "components\\command-palette-shell.tsx -> @/components/public-command-palette": {
+    "id": 1219,
+    "files": [
+      "static/chunks/1219.0862bfecce6e038c.js"
+    ]
+  },
+  "components\\lazy-qr-code-dialog.tsx -> @/components/qr-code-dialog": {
+    "id": 5192,
+    "files": [
+      "static/chunks/5239-4c39720443de629f.js",
+      "static/chunks/4018-3fe538382da593b1.js",
+      "static/chunks/3756-1be2899ae897ce1f.js",
+      "static/chunks/2769-5ea87fab731b4c4d.js",
+      "static/chunks/5192-f15ea7bc238a9ea8.js"
+    ]
+  },
+  "components\\public-command-palette.tsx -> @/components/command-palette": {
+    "id": 7381,
+    "files": [
+      "static/chunks/9762.31560f06002f6ced.js"
+    ]
+  },
+  "node_modules\\@clerk\\nextjs\\dist\\esm\\app-router\\client\\ClerkProvider.js -> ./keyless-creator-reader.js": {
+    "id": 5811,
+    "files": [
+      "static/chunks/5811.03bc1022c06819e2.js"
+    ]
+  },
+  "node_modules\\@clerk\\nextjs\\dist\\esm\\app-router\\client\\keyless-cookie-sync.js -> ../keyless-actions.js": {
+    "id": 2734,
+    "files": [
+      "static/chunks/2734.5707f9a57b7af472.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_app": {
+    "id": 7520,
+    "files": [
+      "static/chunks/5139.a2b964eddec15fdd.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_error": {
+    "id": 1646,
+    "files": [
+      "static/chunks/1646.9123ee47220ed70b.js"
+    ]
+  }
+}

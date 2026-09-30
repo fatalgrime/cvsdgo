@@ -2,25 +2,25 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { isAllowedUser } from "@/lib/access";
+import { getAccessProfile } from "@/lib/access";
 import { SidebarAuth } from "@/components/sidebar-auth";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { CommandPaletteTrigger } from "@/components/command-palette-trigger";
-import { CommandPalette } from "@/components/command-palette";
+import { CommandPaletteShell } from "@/components/command-palette-shell";
 import { MobileNav } from "@/components/mobile-nav";
 
 const SettingsDialog = dynamic(() => import("@/components/settings-dialog").then((mod) => mod.SettingsDialog));
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
-  const isStaff = await isAllowedUser(userId);
+  const access = await getAccessProfile(userId);
+  const isStaff = access.canManageLinks || access.canManageReports;
   const sidebarItems = [
     { href: "/", label: "Link Directory" },
-    { href: "/site/help", label: "Support" },
-    { href: "/site/support", label: "Submissions" },
+    { href: "/site/help", label: "Help" },
+    { href: "/site/support", label: isStaff ? "Submissions" : "Report an Issue" },
   ];
-  if (isStaff) {
+  if (access.canManageLinks) {
     sidebarItems.push({ href: "/site/link-manager", label: "Link Manager" });
     sidebarItems.push({ href: "/site/users", label: "Users" });
     sidebarItems.push({ href: "/site/status", label: "Status" });
@@ -47,11 +47,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
 
           <div className="flex flex-1 items-center justify-center max-w-md mx-1 sm:mx-4">
-            <CommandPaletteTrigger />
+            <CommandPaletteShell isStaff={isStaff} />
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            {isStaff && <SettingsDialog />}
+            {access.canManageLinks && <SettingsDialog />}
             <ThemeToggle />
           </div>
         </div>
@@ -71,7 +71,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
         <section className="pb-10 min-w-0">{children}</section>
       </div>
-      <CommandPalette />
     </main>
   );
 }

@@ -38,17 +38,20 @@ export function SidebarNav({ items }: SidebarNavProps) {
 
   useEffect(() => {
     fetchBadgeCount();
-    const interval = setInterval(fetchBadgeCount, 30_000);
 
     const handleRefreshBadge = () => {
       fetchBadgeCount();
     };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") fetchBadgeCount();
+    };
 
     window.addEventListener("cvsdgo:refresh-submissions-badge", handleRefreshBadge);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener("cvsdgo:refresh-submissions-badge", handleRefreshBadge);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [fetchBadgeCount]);
 

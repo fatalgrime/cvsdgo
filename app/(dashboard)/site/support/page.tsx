@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
-import { AnimatePresence, motion } from "framer-motion";
 import { useToast } from "@/components/toast-provider";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { ReportCommentRow, ReportRow } from "@/lib/types";
 import { validateContentWithAutoModSync } from "@/lib/automod";
 
@@ -281,10 +281,12 @@ export default function SupportPage() {
   return (
     <section className="space-y-5">
       <div className="panel-strong overflow-hidden p-6 md:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700 dark:text-deepforest-400">Support & Administration</p>
-        <h1 className="mt-2 font-serif text-3xl leading-tight text-oxford-700 dark:text-slate-100 md:text-4xl">Submissions & Requests</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700 dark:text-deepforest-400">{isStaff ? "Support & Administration" : "CVSD Go Support"}</p>
+        <h1 className="mt-2 font-serif text-3xl leading-tight text-oxford-700 dark:text-slate-100 md:text-4xl">{isStaff ? "Submissions & Requests" : "Reports, Feedback & QR Access"}</h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-400">
-          Manage problem reports, user feedback, and QR code access permission requests across CVSD Go.
+          {isStaff
+            ? "Manage problem reports, user feedback, and QR code access permission requests across CVSD Go."
+            : "Report a problem, share feedback, and track your QR code download permission requests."}
         </p>
       </div>
 
@@ -301,8 +303,23 @@ export default function SupportPage() {
       </SignedOut>
 
       <SignedIn>
+        {!isStaff && (
+          <div className="grid gap-3 sm:grid-cols-3" aria-label="Available support options">
+            {[
+              { title: "Report a problem", text: "Tell us when a short link or CVSD Go feature is not working." },
+              { title: "Share feedback", text: "Suggest an improvement or send comments to the CVSD Go team." },
+              { title: "Track QR access", text: "Review your QR code download permission requests and decisions." },
+            ].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+                <p className="text-sm font-semibold text-oxford-700 dark:text-slate-100">{item.title}</p>
+                <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-400">{item.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800">
+        <div className="flex overflow-x-auto border-b border-slate-200 dark:border-slate-800" role="tablist" aria-label="Support submissions">
           <button
             type="button"
             onClick={() => setActiveTab("reports")}
@@ -315,7 +332,7 @@ export default function SupportPage() {
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Problem Reports
+            {isStaff ? "Problem Reports" : "Reports & Feedback"}
             {openReportsCount > 0 && (
               <span className="rounded-full bg-oxford-100 px-2 py-0.5 text-[10px] font-extrabold text-oxford-800 dark:bg-oxford-900/60 dark:text-oxford-200">
                 {openReportsCount}
@@ -335,7 +352,7 @@ export default function SupportPage() {
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
             </svg>
-            QR Code Permission Requests
+            QR Access Requests
             {pendingQrCount > 0 && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-800 dark:bg-amber-950/70 dark:text-amber-300">
                 {pendingQrCount} Pending
@@ -490,7 +507,7 @@ export default function SupportPage() {
             </div>
 
             <div className="panel p-5">
-              <h2 className="text-base font-semibold text-oxford-700 dark:text-slate-100">Submit a Report</h2>
+              <h2 className="text-base font-semibold text-oxford-700 dark:text-slate-100">Submit a report or feedback</h2>
               <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500" htmlFor="title">Title</label>
@@ -695,48 +712,14 @@ export default function SupportPage() {
         )}
       </SignedIn>
 
-      <AnimatePresence>
-        {pendingDelete && (
-          <motion.div
-            className="modal-backdrop z-[200] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={(event) => { if (event.target === event.currentTarget) setPendingDelete(null); }}
-          >
-            <motion.div
-              className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950"
-              initial={{ opacity: 0, scale: 0.95, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 8 }}
-              transition={{ duration: 0.18 }}
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-deepforest-700">Confirm delete</p>
-              <h2 className="mt-2 font-serif text-xl text-oxford-700 dark:text-slate-100">Delete this report?</h2>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                This will permanently remove{" "}
-                <span className="font-semibold text-oxford-700 dark:text-slate-200">{pendingDelete.title}</span>.
-              </p>
-              <div className="mt-5 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleDelete(pendingDelete.id)}
-                  className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
-                >
-                  Delete
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPendingDelete(null)}
-                  className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete this report?"
+        description={<>This will permanently remove <span className="font-semibold text-oxford-700 dark:text-slate-200">{pendingDelete?.title}</span>.</>}
+        confirmLabel="Delete"
+        onConfirm={() => { if (pendingDelete) void handleDelete(pendingDelete.id); }}
+        onClose={() => setPendingDelete(null)}
+      />
     </section>
   );
 }

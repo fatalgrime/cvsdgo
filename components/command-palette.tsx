@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useDeferredValue } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useRef, useState, useDeferredValue } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
-import { show as showIntercom } from "@intercom/messenger-js-sdk";
+import { motion } from "framer-motion";
+import { AccessibleDialog } from "@/components/accessible-dialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type {
@@ -88,7 +87,7 @@ type LinkOption = {
   folder_name: string | null;
 };
 
-export function CommandPalette() {
+export function CommandPalette({ initialActionType }: { initialActionType?: AdminActionType } = {}) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -105,7 +104,6 @@ export function CommandPalette() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
-  const [portalReady, setPortalReady] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
@@ -165,12 +163,10 @@ export function CommandPalette() {
   // Cached dropdown options
   const [availableFolders, setAvailableFolders] = useState<FolderOption[]>([]);
   const [availableLinks, setAvailableLinks] = useState<LinkOption[]>([]);
+  const didStartInitialAction = useRef(false);
 
   useEffect(() => {
-    setPortalReady(true);
-  }, []);
-
-  useEffect(() => {
+    if (initialActionType) return;
     function handleKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -189,7 +185,7 @@ export function CommandPalette() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("cvsdgo:open-command-palette", handleOpenEvent);
     };
-  }, []);
+  }, [initialActionType]);
 
   useEffect(() => {
     if (isOpen) {
@@ -262,7 +258,7 @@ export function CommandPalette() {
     }
   };
 
-  const startAiWorkflow = (actionType: AdminActionType) => {
+  const startAiWorkflow = useCallback((actionType: AdminActionType) => {
     setAiMode(actionType);
     setAiState("generating");
     setStepIndex(0);
@@ -351,7 +347,15 @@ export function CommandPalette() {
 
       setTimeout(() => inputRef.current?.focus(), 50);
     }, 450);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!initialActionType || didStartInitialAction.current) return;
+    didStartInitialAction.current = true;
+    setIsOpen(true);
+    const timer = window.setTimeout(() => startAiWorkflow(initialActionType), 0);
+    return () => window.clearTimeout(timer);
+  }, [initialActionType, startAiWorkflow]);
 
   const exitAiWorkflow = () => {
     setAiMode(null);
@@ -381,18 +385,7 @@ export function CommandPalette() {
     } else if (item.type === "link") {
       router.push(item.href);
     } else if (item.type === "action") {
-      if (item.actionId === "open-intercom") {
-        try {
-          showIntercom();
-        } catch {
-          if (
-            typeof window !== "undefined" &&
-            (window as unknown as { Intercom?: (cmd: string) => void }).Intercom
-          ) {
-            (window as unknown as { Intercom: (cmd: string) => void }).Intercom("show");
-          }
-        }
-      } else if (item.actionId === "toggle-theme") {
+      if (item.actionId === "toggle-theme") {
         const currentTheme = document.documentElement.classList.contains("dark")
           ? "dark"
           : "light";
@@ -956,29 +949,15 @@ export function CommandPalette() {
 
   return (
     <>
-      {portalReady &&
-        createPortal(
-          <AnimatePresence>
-            {isOpen && (
-              <motion.div
-                className="modal-backdrop z-[100] flex items-start justify-center pt-16 px-4 bg-slate-950/60 backdrop-blur-sm sm:pt-24"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) setIsOpen(false);
-                }}
-                onKeyDown={handleModalKeyDown}
-              >
-                <motion.div
-                  className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
-                  initial={{ opacity: 0, scale: 0.96, y: -12 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96, y: -12 }}
-                  transition={{ duration: 0.18 }}
-                  role="dialog"
-                  aria-label="Command Palette Search"
-                >
+      <AccessibleDialog
+        open={isOpen}
+        onClose={() => { if (aiMode) exitAiWorkflow(); else setIsOpen(false); }}
+        ariaLabel="Command palette search"
+        zIndexClassName="z-[100]"
+        align="top"
+        onKeyDown={handleModalKeyDown}
+        panelClassName="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+      >
                   {/* --- Search Bar Input Header --- */}
                   <div className="relative border-b border-slate-200 px-4 py-3.5 dark:border-slate-800">
                     {aiMode ? (
@@ -1688,12 +1667,7 @@ export function CommandPalette() {
                     )}
                     <span>CVSD Go Search v2</span>
                   </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
+      </AccessibleDialog>
     </>
   );
 }

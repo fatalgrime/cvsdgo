@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "framer-motion";
 import { SignInButton, useUser } from "@clerk/nextjs";
 import { useToast } from "@/components/toast-provider";
 import { generateQrSvgDataUri } from "@/lib/qr-generator";
+import { AccessibleDialog } from "@/components/accessible-dialog";
 
 type QrCodeDialogProps = {
   slug: string;
   url?: string;
   description?: string;
   triggerButton?: React.ReactNode;
+  initiallyOpen?: boolean;
 };
 
 type RequestStatusPayload = {
@@ -24,10 +24,9 @@ type RequestStatusPayload = {
   isAuthenticated?: boolean;
 };
 
-export function QrCodeDialog({ slug, description, triggerButton }: QrCodeDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function QrCodeDialog({ slug, description, triggerButton, initiallyOpen = false }: QrCodeDialogProps) {
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [includeLogo, setIncludeLogo] = useState(true);
-  const [portalReady, setPortalReady] = useState(false);
   const [reqState, setReqState] = useState<RequestStatusPayload>({
     status: "none",
     directAccess: false,
@@ -45,10 +44,6 @@ export function QrCodeDialog({ slug, description, triggerButton }: QrCodeDialogP
   const { toast } = useToast();
 
   const shortLinkUrl = `https://go.cvsd.live/${slug}`;
-
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -184,7 +179,7 @@ Status: Agree`;
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-xs font-semibold text-oxford-700 shadow-sm transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300"
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-oxford-700 shadow-sm transition hover:border-oxford-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxford-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300"
           title="Generate QR Code"
         >
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -193,30 +188,17 @@ Status: Agree`;
             <rect x="3" y="14" width="7" height="7" rx="1" />
             <path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3" />
           </svg>
-          QR Code
+          <span>QR code</span>
         </button>
       )}
 
-      {portalReady &&
-        createPortal(
-          <AnimatePresence>
-            {isOpen && (
-              <motion.div
-                className="modal-backdrop z-[100] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) setIsOpen(false);
-                }}
-              >
-                <motion.div
-                  className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
-                  initial={{ opacity: 0, scale: 0.95, y: 8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                  transition={{ duration: 0.2 }}
-                >
+      <AccessibleDialog
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        ariaLabel={`QR code for go.cvsd.live/${slug}`}
+        zIndexClassName="z-[100]"
+        panelClassName="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+      >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-deepforest-700 dark:text-deepforest-400">
@@ -244,6 +226,8 @@ Status: Agree`;
                     className="mt-5 flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-6 select-none dark:border-slate-800 dark:bg-slate-900/60"
                     onDragStart={(e) => e.preventDefault()}
                   >
+                    {/* Generated QR SVG data URIs are already final-size vector assets. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={generateQrSvgDataUri(shortLinkUrl, includeLogo)}
                       alt={`QR Code for ${shortLinkUrl}`}
@@ -361,34 +345,17 @@ Status: Agree`;
                       </div>
                     )}
                   </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
+      </AccessibleDialog>
 
       {/* Vantor Trust & Safety Appeal Modal */}
-      {portalReady &&
-        createPortal(
-          <AnimatePresence>
-            {showAppealModal && (
-              <motion.div
-                className="modal-backdrop z-[110] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-md"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) setShowAppealModal(false);
-                }}
-              >
-                <motion.div
-                  className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
-                  initial={{ opacity: 0, scale: 0.95, y: 8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                  transition={{ duration: 0.2 }}
-                >
+      <AccessibleDialog
+        open={showAppealModal}
+        onClose={() => setShowAppealModal(false)}
+        ariaLabel="QR code download appeal information"
+        zIndexClassName="z-[110]"
+        backdropClassName="bg-slate-950/70 backdrop-blur-md"
+        panelClassName="max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+      >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700 dark:text-rose-400">
@@ -446,12 +413,7 @@ Status: Agree`;
                       Close
                     </button>
                   </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
+      </AccessibleDialog>
     </>
   );
 }

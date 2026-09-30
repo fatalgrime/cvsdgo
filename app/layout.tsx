@@ -1,11 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Lora } from "next/font/google";
 import Script from "next/script";
 import { ToastProvider } from "@/components/toast-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { SiteFooter } from "@/components/site-footer";
-import { IntercomProvider } from "@/components/intercom-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -19,9 +18,39 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
-  title: "CVSD Go",
+  metadataBase: new URL("https://go.cvsd.live"),
+  title: {
+    default: "CVSD Go",
+    template: "%s | CVSD Go",
+  },
   description:
-    "The official district link shortener service powered by and for Cedar Valley School District. Ditch those long links and go.cvsd.live!"
+    "The official Cedar Valley School District link directory and short-link service.",
+  applicationName: "CVSD Go",
+  authors: [{ name: "Cedar Valley School District", url: "https://cvsd.live" }],
+  creator: "Cedar Valley School District",
+  category: "education",
+  keywords: ["Cedar Valley School District", "CVSD", "district links", "short links"],
+  icons: { icon: "/cvsd-logo.png", apple: "/cvsd-logo.png" },
+  manifest: "/manifest.webmanifest",
+  openGraph: {
+    type: "website",
+    siteName: "CVSD Go",
+    title: "CVSD Go",
+    description: "Find and share official Cedar Valley School District links.",
+    url: "/",
+  },
+  twitter: {
+    card: "summary",
+    title: "CVSD Go",
+    description: "Find and share official Cedar Valley School District links.",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#18181b" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -52,7 +81,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SiteFooter />
             </div>
             <CookieConsentBanner />
-            <IntercomProvider />
           </ToastProvider>
         </ClerkProvider>
       </body>

@@ -28,7 +28,7 @@ export type SearchLinkItem = {
 export type SearchActionItem = {
   id: string;
   type: "action";
-  actionId: "toggle-theme" | "open-settings" | "open-intercom";
+  actionId: "toggle-theme" | "open-settings";
   title: string;
   description: string;
 };
@@ -162,16 +162,6 @@ export async function GET(request: Request): Promise<Response> {
       description: "Switch color theme mode",
     },
   ];
-
-  if (userId) {
-    availableActions.unshift({
-      id: "action-intercom",
-      type: "action",
-      actionId: "open-intercom",
-      title: "Open Support Messenger",
-      description: "Chat with CVSD support & help center",
-    });
-  }
 
   if (profile.admin) {
     availableActions.push({

@@ -4,34 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
-import Image from "next/image";
 import { useToast } from "@/components/toast-provider";
+import { AccessibleDialog } from "@/components/accessible-dialog";
+import { RolePill, StatusBadge, ToggleSwitch, UserAvatar, type ManagedUser } from "@/components/user-management-primitives";
 import type { ReportCommentRow, ReportRow } from "@/lib/types";
 
 type ReportingProfile = {
-  reportBanType: string;
-  reportBannedUntil: string | null;
-  reportLimitHourly: number;
-  reportLimitDaily: number;
-  reportStrikes: number;
-  reportLastStrikeAt: string | null;
-};
-
-type ManagedUser = {
-  id: string;
-  name: string;
-  username: string | null;
-  email: string | null;
-  imageUrl: string;
-  banned: boolean;
-  locked: boolean;
-  createdAt: number;
-  lastSignInAt: number | null;
-  allowlisted: boolean;
-  admin: boolean;
-  reportStaff: boolean;
-  metadataAdmin: boolean;
-  metadataReportStaff: boolean;
   reportBanType: string;
   reportBannedUntil: string | null;
   reportLimitHourly: number;
@@ -75,109 +53,6 @@ const initialReportingProfile: ReportingProfile = {
   reportLastStrikeAt: null,
 };
 
-function ToggleSwitch({
-  checked,
-  onChange,
-  disabled,
-  id,
-  label,
-  title,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  disabled?: boolean;
-  id: string;
-  label: string;
-  title?: string;
-}) {
-  return (
-    <label
-      htmlFor={id}
-      title={title}
-      className={`inline-flex cursor-pointer items-center gap-2 select-none ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
-    >
-      <span className="relative">
-        <input
-          id={id}
-          type="checkbox"
-          role="switch"
-          aria-checked={checked}
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="sr-only"
-        />
-        <span
-          aria-hidden="true"
-          className={`block h-5 w-9 rounded-full transition-colors duration-200 ${
-            checked ? "bg-oxford-700" : "bg-slate-300 dark:bg-slate-600"
-          }`}
-        />
-        <span
-          aria-hidden="true"
-          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${
-            checked ? "translate-x-4" : "translate-x-0"
-          }`}
-        />
-      </span>
-      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{label}</span>
-    </label>
-  );
-}
-
-function StatusBadge({ status }: { status: "active" | "locked" | "pwreset" | "reportBanned" | "permanentBan" }) {
-  const cfg = {
-    active:      { dot: "bg-emerald-500",  text: "text-emerald-700 dark:text-emerald-300",  label: "Active" },
-    locked:      { dot: "bg-rose-500",     text: "text-rose-700 dark:text-rose-300",        label: "Locked" },
-    pwreset:     { dot: "bg-amber-400",    text: "text-amber-700 dark:text-amber-300",      label: "Pw Reset" },
-    reportBanned:{ dot: "bg-orange-400",   text: "text-orange-700 dark:text-orange-300",    label: "Rpt Banned" },
-    permanentBan:{ dot: "bg-red-600",      text: "text-red-700 dark:text-red-300",          label: "Perm Ban" },
-  }[status];
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${cfg.text}`}>
-      <span className={`h-2 w-2 shrink-0 rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  );
-}
-
-/** Role pill chip. */
-function RolePill({ label, color }: { label: string; color: "oxford" | "deepforest" | "amber" }) {
-  const cls = {
-    oxford:     "border-oxford-200 bg-oxford-50 text-oxford-700 dark:border-oxford-700 dark:bg-oxford-900/60 dark:text-slate-200",
-    deepforest: "border-deepforest-200 bg-deepforest-50 text-deepforest-700 dark:border-deepforest-700 dark:bg-deepforest-900/60 dark:text-slate-200",
-    amber:      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200",
-  }[color];
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${cls}`}>
-      {label}
-    </span>
-  );
-}
-
-function UserAvatar({ user }: { user: ManagedUser }) {
-  const [imgError, setImgError] = useState(false);
-  const initials = user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-  if (user.imageUrl && !imgError) {
-    return (
-      <Image
-        src={user.imageUrl}
-        alt={user.name}
-        width={36}
-        height={36}
-        unoptimized
-        onError={() => setImgError(true)}
-        className="h-9 w-9 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
-      />
-    );
-  }
-  return (
-    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-oxford-100 text-xs font-bold text-oxford-700 dark:bg-oxford-800 dark:text-slate-200">
-      {initials || "?"}
-    </span>
-  );
-}
-
 function ConfirmDialog({
   action,
   onConfirm,
@@ -204,20 +79,12 @@ function ConfirmDialog({
   const { title, body, cta, danger } = cfg;
 
   return (
-    <motion.div
-      className="modal-backdrop z-[200] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    <AccessibleDialog
+      open
+      onClose={onCancel}
+      ariaLabel={title}
+      panelClassName="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950"
     >
-      <motion.div
-        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950"
-        initial={{ opacity: 0, scale: 0.95, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.18 }}
-      >
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-deepforest-700">Confirm action</p>
         <h3 className="mt-2 font-serif text-xl text-oxford-700 dark:text-slate-100">{title}</h3>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{body}</p>
@@ -241,8 +108,7 @@ function ConfirmDialog({
             Cancel
           </button>
         </div>
-      </motion.div>
-    </motion.div>
+    </AccessibleDialog>
   );
 }
 
@@ -419,21 +285,14 @@ function ReportModal({
     : "This user can submit reports normally.";
 
   return (
-    <motion.div
-      className="modal-backdrop z-[100] overflow-y-auto bg-slate-950/70 backdrop-blur-sm"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    <AccessibleDialog
+      open
+      onClose={onClose}
+      ariaLabel={`Report and moderation controls for ${user.name || user.email}`}
+      zIndexClassName="z-[100]"
+      backdropClassName="bg-slate-950/70 backdrop-blur-sm"
+      panelClassName="max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950"
     >
-      <div className="flex min-h-full items-start justify-center p-4 sm:items-center">
-        <motion.div
-          className="w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950"
-          initial={{ opacity: 0, y: 12, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 12, scale: 0.98 }}
-          transition={{ duration: 0.2 }}
-        >
           {/* Modal header */}
           <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50/80 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/60">
             <div className="flex items-center gap-3">
@@ -597,9 +456,7 @@ function ReportModal({
               </div>
             )}
           </div>
-        </motion.div>
-      </div>
-    </motion.div>
+    </AccessibleDialog>
   );
 }
 

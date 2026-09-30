@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-export function CommandPaletteTrigger() {
+type CommandPaletteTriggerProps = {
+  onOpen?: () => void;
+};
+
+export function CommandPaletteTrigger({ onOpen }: CommandPaletteTriggerProps) {
   const [shortcutKey, setShortcutKey] = useState("⌘K");
 
   useEffect(() => {
@@ -12,6 +16,10 @@ export function CommandPaletteTrigger() {
   }, []);
 
   function handleOpen() {
+    if (onOpen) {
+      onOpen();
+      return;
+    }
     window.dispatchEvent(new CustomEvent("cvsdgo:open-command-palette"));
   }
 

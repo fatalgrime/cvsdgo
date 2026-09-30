@@ -31,6 +31,8 @@ export function MobileNav({ items }: MobileNavProps) {
             onClick={() => setIsOpen(!isOpen)}
             className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-oxford-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             aria-label="Toggle Navigation Menu"
+            aria-expanded={isOpen}
+            aria-controls="mobile-navigation-panel"
           >
             {isOpen ? (
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -52,6 +54,7 @@ export function MobileNav({ items }: MobileNavProps) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            id="mobile-navigation-panel"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}

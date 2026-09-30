@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LinkFolderRow, RedirectRow } from "@/lib/types";
 import { useToast } from "@/components/toast-provider";
 import { QrCodeDialog } from "@/components/qr-code-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { validateContentWithAutoModSync } from "@/lib/automod";
 
 const EMPTY_FORM = {
@@ -50,7 +50,6 @@ export default function LinkManagerPage() {
   const [isFolderReordering, setIsFolderReordering] = useState(false);
   const [movingLinkId, setMovingLinkId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<RedirectRow | null>(null);
-  const [portalReady, setPortalReady] = useState(false);
   const [qrRequests, setQrRequests] = useState<Array<{
     id: number;
     link_slug: string;
@@ -174,10 +173,6 @@ export default function LinkManagerPage() {
       setIsLoading(false);
     }
   }, [isSignedIn, loadData]);
-
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
 
   function updateField<K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -872,52 +867,14 @@ export default function LinkManagerPage() {
         </div>
       </SignedIn>
 
-      {portalReady &&
-        createPortal(
-          <AnimatePresence>
-            {pendingDelete && (
-              <motion.div
-                className="modal-backdrop z-[200] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={(e) => { if (e.target === e.currentTarget) setPendingDelete(null); }}
-              >
-                <motion.div
-                  className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-950"
-                  initial={{ opacity: 0, scale: 0.95, y: 8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                  transition={{ duration: 0.18 }}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-deepforest-700">Confirm delete</p>
-                  <h2 className="mt-2 font-serif text-xl text-oxford-700 dark:text-slate-100">Delete this link?</h2>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                    This will permanently remove{" "}
-                    <span className="font-semibold text-oxford-700 dark:text-slate-200">go.cvsd.live/{pendingDelete.slug}</span>.
-                  </p>
-                  <div className="mt-5 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(pendingDelete.id)}
-                      className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
-                    >
-                      Delete
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingDelete(null)}
-                      className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete this link?"
+        description={<>This will permanently remove <span className="font-semibold text-oxford-700 dark:text-slate-200">go.cvsd.live/{pendingDelete?.slug}</span>.</>}
+        confirmLabel="Delete"
+        onConfirm={() => { if (pendingDelete) void handleDelete(pendingDelete.id); }}
+        onClose={() => setPendingDelete(null)}
+      />
     </section>
   );
 }
