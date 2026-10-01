@@ -82,7 +82,9 @@ export async function POST(request: Request): Promise<Response> {
     canAppeal?: boolean;
   } | null;
 
-  if (!body?.requestId || !body?.status) {
+  const requestId = Number(body?.requestId);
+  const status = body?.status;
+  if (!Number.isInteger(requestId) || requestId <= 0 || (status !== "accepted" && status !== "declined")) {
     return new Response("Invalid request payload", { status: 400 });
   }
 
@@ -97,27 +99,32 @@ export async function POST(request: Request): Promise<Response> {
   await ensureQrSchema();
   const sql = getSql();
 
-  const adminReason = body.adminReason?.trim() ?? null;
-  const canAppeal = body.canAppeal !== false;
+  const adminReason = body?.adminReason?.trim() ?? null;
+  const canAppeal = body?.canAppeal !== false;
 
-  await sql`
+  const updated = (await sql`
     UPDATE qr_code_requests
-    SET status = ${body.status},
+    SET status = ${status},
         admin_reason = ${adminReason},
         can_appeal = ${canAppeal},
         reviewed_by_user_id = ${userId},
         reviewed_by_name = ${reviewerName},
         updated_at = NOW()
-    WHERE id = ${body.requestId};
-  `;
+    WHERE id = ${requestId}
+    RETURNING id;
+  `) as { id: number }[];
+
+  if (updated.length === 0) {
+    return new Response("Request not found", { status: 404 });
+  }
 
   await logAuditEvent({
-    action: `QR Download Access ${body.status === "accepted" ? "Accepted" : "Declined"}`,
-    details: `Admin ${body.status} request #${body.requestId} ${adminReason ? `(Reason: ${adminReason})` : ""}`,
+    action: `QR Download Access ${status === "accepted" ? "Accepted" : "Declined"}`,
+    details: `Admin ${status} request #${requestId} ${adminReason ? `(Reason: ${adminReason})` : ""}`,
     actorUserId: userId,
-    severity: body.status === "declined" ? "warning" : "info",
+    severity: status === "declined" ? "warning" : "info",
     category: "qr-requests",
   });
 
-  return Response.json({ success: true, status: body.status });
+  return Response.json({ success: true, status });
 }

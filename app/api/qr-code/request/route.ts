@@ -149,7 +149,23 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   await ensureQrSchema();
+  await ensureLinkSchema();
   const sql = getSql();
+
+  const linkRows = (await sql`
+    SELECT qr_code_access_enabled
+    FROM redirects
+    WHERE slug = ${slug}
+    LIMIT 1;
+  `) as { qr_code_access_enabled: boolean }[];
+  if (linkRows.length === 0) {
+    return new Response("Link not found", { status: 404 });
+  }
+
+  const profile = await getAccessProfile(userId);
+  if (profile.canManageLinks || profile.canManageReports || linkRows[0].qr_code_access_enabled) {
+    return Response.json({ status: "accepted", message: "QR download access is already available" });
+  }
 
   let userEmail = "";
   let userName = "";
@@ -162,7 +178,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const existing = (await sql`
-    SELECT id, status
+    SELECT id, status, can_appeal
     FROM qr_code_requests
     WHERE link_slug = ${slug} AND user_id = ${userId}
     ORDER BY id DESC
@@ -174,6 +190,9 @@ export async function POST(request: Request): Promise<Response> {
   }
   if (existing[0]?.status === "accepted") {
     return Response.json({ status: "accepted", message: "Access already granted" });
+  }
+  if (existing[0]?.status === "declined" && existing[0].can_appeal === false) {
+    return new Response("This decision is final and cannot be resubmitted", { status: 403 });
   }
 
   await sql`

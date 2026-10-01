@@ -50,6 +50,20 @@ async function runEnsureReportSchema(): Promise<void> {
   await sql`
     CREATE INDEX IF NOT EXISTS report_strikes_user_id_idx ON report_strikes(user_id);
   `;
+
+  await sql`
+    DELETE FROM report_strikes duplicate
+    USING report_strikes original
+    WHERE duplicate.report_id = original.report_id
+      AND duplicate.strike_type = original.strike_type
+      AND duplicate.id > original.id;
+  `;
+
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS report_strikes_report_type_unique_idx
+    ON report_strikes(report_id, strike_type)
+    WHERE report_id IS NOT NULL;
+  `;
 }
 
 export async function ensureReportSchema(): Promise<void> {

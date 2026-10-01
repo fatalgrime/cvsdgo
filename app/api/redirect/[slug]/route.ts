@@ -51,7 +51,7 @@ export async function GET(
     return Response.json({ destinationUrl: null, locked: true, canOverride });
   }
 
-  recordClick(rawSlug);
+  await recordClick(rawSlug);
 
   return Response.json({ destinationUrl: destination.url, locked: false });
 }
@@ -101,7 +101,7 @@ export async function POST(
     }
   }
 
-  recordClick(rawSlug);
+  await recordClick(rawSlug);
 
   return Response.json({ destinationUrl: destination.url, locked: false });
 }

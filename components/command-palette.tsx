@@ -86,6 +86,10 @@ type LinkOption = {
   url: string;
   folder_id: number | null;
   folder_name: string | null;
+  is_locked: boolean | null;
+  release_at: string | null;
+  expires_at: string | null;
+  qr_code_access_enabled: boolean | null;
 };
 
 type CommandPaletteProps = {
@@ -625,6 +629,8 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
           slug: targetLink.slug,
           newUrl: targetLink.url,
           newTitle: targetLink.description || "",
+          newFolderId: targetLink.folder_id,
+          newFolderName: targetLink.folder_name || "No folder",
         }));
         setStepIndex(1);
         setChatHistory([
@@ -856,6 +862,10 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
         setAiState("success");
       } else if (aiMode === "update-link") {
         if (!updateData.linkId) throw new Error("No link selected to update.");
+        const targetLink = availableLinks.find((link) => link.id === updateData.linkId);
+        if (!targetLink) throw new Error("Selected link not found.");
+        const isPasswordUpdate = updateData.fieldToUpdate === "password";
+        const removePassword = isPasswordUpdate && updateData.newPassword.trim().toLowerCase() === "remove";
         const res = await fetch(`/api/links/${updateData.linkId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -864,7 +874,11 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
             url: updateData.newUrl,
             description: updateData.newTitle,
             folderId: updateData.newFolderId,
-            password: updateData.newPassword || undefined,
+            isLocked: isPasswordUpdate ? !removePassword : Boolean(targetLink.is_locked),
+            password: isPasswordUpdate && !removePassword ? updateData.newPassword : "",
+            releaseAt: targetLink.release_at,
+            expiresAt: targetLink.expires_at,
+            qrCodeAccessEnabled: Boolean(targetLink.qr_code_access_enabled),
           }),
         });
 
@@ -911,6 +925,11 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
             url: targetLink.url,
             description: targetLink.description,
             folderId: moveData.targetFolderId,
+            isLocked: Boolean(targetLink.is_locked),
+            password: "",
+            releaseAt: targetLink.release_at,
+            expiresAt: targetLink.expires_at,
+            qrCodeAccessEnabled: Boolean(targetLink.qr_code_access_enabled),
           }),
         });
 

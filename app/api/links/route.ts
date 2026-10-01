@@ -77,7 +77,7 @@ export async function GET(): Promise<Response> {
       r.slug,
       r.url,
       r.description,
-      r.click_count,
+      r.click_count::double precision AS click_count,
       r.is_locked,
       r.release_at,
       r.expires_at,

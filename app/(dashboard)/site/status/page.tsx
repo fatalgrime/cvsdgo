@@ -31,6 +31,8 @@ type SettingsResponse = {
   health: {
     databaseConfigured: boolean;
     webhookConfigured: boolean;
+    webhookOperational: boolean | null;
+    webhookLastDeliveryAt: string | null;
     auditLogEntries: number;
     latestActivityAt: string | null;
   };
@@ -43,7 +45,28 @@ const severityStyles: Record<Severity, { label: string; dot: string; badge: stri
 };
 
 function getActorLabel(entry: AuditLogEntry): string {
-  return entry.actor_username || entry.actor_discord_username || entry.actor_email || "Unknown account";
+  return entry.actor_username || entry.actor_discord_username || "Unknown account";
+}
+
+function ActorIdentity({ entry }: { entry: AuditLogEntry }) {
+  const hasDiscord = entry.actor_has_discord_account || Boolean(entry.actor_discord_username);
+  const discordLabel = entry.actor_discord_username
+    ? `Linked with @${entry.actor_discord_username} on Discord`
+    : "Linked with a Discord account";
+
+  return (
+    <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-200">
+      {getActorLabel(entry)}
+      {hasDiscord ? (
+        <span tabIndex={0} role="img" aria-label={discordLabel} className="group relative inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-emerald-100 text-emerald-700 outline-none ring-1 ring-emerald-200 focus-visible:ring-2 focus-visible:ring-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800">
+          <svg aria-hidden="true" viewBox="0 0 16 16" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m3.5 8 3 3 6-6" /></svg>
+          <span role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-64 -translate-x-1/2 rounded-lg bg-slate-950 px-2.5 py-1.5 text-center text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus:opacity-100 dark:bg-slate-700">
+            {discordLabel}
+          </span>
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 function formatCategory(value: string | null): string {
@@ -95,7 +118,7 @@ export default function StatusPage() {
       if (severityFilter !== "all" && severity !== severityFilter) return false;
       if (categoryFilter !== "all" && entry.category !== categoryFilter) return false;
       if (!normalizedQuery) return true;
-      return [entry.action, entry.details, entry.actor_username, entry.actor_email, entry.actor_discord_username, entry.category, entry.source]
+      return [entry.action, entry.details, entry.actor_username, entry.actor_discord_username, entry.category, entry.source]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -116,7 +139,12 @@ export default function StatusPage() {
 
   const statCards = [
     { label: "Database", value: health?.databaseConfigured ? "Connected" : "Unavailable", description: "Audit and application storage", healthy: Boolean(health?.databaseConfigured) },
-    { label: "Discord delivery", value: health?.webhookConfigured ? "Configured" : "Not configured", description: "Administrative event notifications", healthy: Boolean(health?.webhookConfigured) },
+    {
+      label: "Discord delivery",
+      value: !health?.webhookConfigured ? "Not configured" : health.webhookOperational === true ? "Operational" : health.webhookOperational === false ? "Delivery failed" : "Not tested",
+      description: health?.webhookLastDeliveryAt ? `Last attempt ${new Date(health.webhookLastDeliveryAt).toLocaleString()}` : "Administrative event notifications",
+      healthy: Boolean(health?.webhookConfigured && health.webhookOperational === true),
+    },
     { label: "Recorded events", value: String(health?.auditLogEntries ?? auditLogs.length), description: "Most recent activity window", healthy: true },
     { label: "Critical events", value: String(severityCounts.critical), description: "Events requiring review", healthy: severityCounts.critical === 0 },
   ];
@@ -172,13 +200,11 @@ export default function StatusPage() {
                       </div>
                       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
                         <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-semibold ${styles.badge}`}><span className={`h-1.5 w-1.5 rounded-full ${styles.dot}`}/>{styles.label}</span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">{getActorLabel(entry)}</span>
-                        {entry.actor_email && entry.actor_email !== getActorLabel(entry) ? <span className="text-slate-500">{entry.actor_email}</span> : null}
-                        {entry.actor_discord_username ? <span className="text-indigo-600 dark:text-indigo-300">Discord @{entry.actor_discord_username}</span> : null}
+                        <ActorIdentity entry={entry} />
                         <span className="text-slate-500">{formatCategory(entry.category)}</span>
                       </div>
                       {(entry.actor_user_id || entry.actor_ip_address || entry.metadata) && (
-                        <details className="mt-3 text-xs text-slate-500"><summary className="cursor-pointer select-none font-semibold hover:text-oxford-700 dark:hover:text-slate-200">Technical details</summary><div className="mt-2 grid gap-1 rounded-xl bg-slate-50 p-3 font-mono dark:bg-slate-900"><span>Source: {entry.source || "CVSD Go"}</span>{entry.actor_user_id ? <span>Clerk ID: {entry.actor_user_id}</span> : null}{entry.actor_discord_user_id ? <span>Discord ID: {entry.actor_discord_user_id}</span> : null}{entry.actor_ip_address ? <span>IP: {entry.actor_ip_address}</span> : null}{entry.metadata ? <span className="break-all">Metadata: {JSON.stringify(entry.metadata)}</span> : null}</div></details>
+                        <details className="mt-3 text-xs text-slate-500"><summary className="cursor-pointer select-none font-semibold hover:text-oxford-700 dark:hover:text-slate-200">Technical details</summary><div className="mt-2 grid gap-1 rounded-xl bg-slate-50 p-3 font-mono dark:bg-slate-900"><span>Source: {entry.source || "CVSD Go"}</span>{entry.actor_user_id ? <span>Clerk ID: {entry.actor_user_id}</span> : null}{entry.actor_discord_user_id ? <span>Discord ID: {entry.actor_discord_user_id}</span> : null}{entry.actor_ip_address ? <span>IP (redacted): {entry.actor_ip_address}</span> : null}{entry.metadata ? <span className="break-all">Metadata: {JSON.stringify(entry.metadata)}</span> : null}</div></details>
                       )}
                     </div>
                   </div>

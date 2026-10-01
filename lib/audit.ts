@@ -173,6 +173,20 @@ async function runEnsureAuditSchema(): Promise<void> {
   `;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS site_settings_history (
+      id BIGSERIAL PRIMARY KEY,
+      setting_key TEXT NOT NULL,
+      setting_value TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS site_settings_history_key_created_idx
+    ON site_settings_history(setting_key, created_at DESC);
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id BIGSERIAL PRIMARY KEY,
       action TEXT NOT NULL,
@@ -197,6 +211,14 @@ async function runEnsureAuditSchema(): Promise<void> {
   await sql`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_email TEXT;`;
   await sql`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_discord_username TEXT;`;
   await sql`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_discord_user_id TEXT;`;
+
+  // Webhook URLs are credentials. Remove values written by older settings audit events.
+  await sql`
+    UPDATE audit_logs
+    SET metadata = metadata - 'previousValue' - 'newValue'
+    WHERE metadata->>'settingKey' = 'discord_webhook_url'
+      AND (metadata ? 'previousValue' OR metadata ? 'newValue');
+  `;
 
   await sql`
     CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs(created_at DESC);
@@ -284,7 +306,7 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
     const embedColor = severity === "critical" ? 0xdc2626 : severity === "warning" ? 0xd97706 : 0x1d4ed8;
 
     try {
-      await fetch(webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -308,8 +330,31 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
           ],
         }),
       });
-    } catch {
+      await sql`
+        INSERT INTO site_settings (setting_key, setting_value, updated_at)
+        VALUES
+          ('discord_webhook_last_delivery_ok', ${response.ok ? "true" : "false"}, NOW()),
+          ('discord_webhook_last_delivery_at', ${new Date().toISOString()}, NOW())
+        ON CONFLICT (setting_key) DO UPDATE SET
+          setting_value = EXCLUDED.setting_value,
+          updated_at = NOW();
+      `;
+      if (!response.ok) {
+        console.error(`Discord webhook delivery failed with status ${response.status}.`);
+      }
+    } catch (error) {
+      await sql`
+        INSERT INTO site_settings (setting_key, setting_value, updated_at)
+        VALUES
+          ('discord_webhook_last_delivery_ok', 'false', NOW()),
+          ('discord_webhook_last_delivery_at', ${new Date().toISOString()}, NOW())
+        ON CONFLICT (setting_key) DO UPDATE SET
+          setting_value = EXCLUDED.setting_value,
+          updated_at = NOW();
+      `.catch(() => undefined);
+      console.error("Discord webhook delivery failed:", error);
     }
-  } catch {
+  } catch (error) {
+    console.error("Unable to record audit event:", error);
   }
 }

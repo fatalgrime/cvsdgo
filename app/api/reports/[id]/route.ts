@@ -10,16 +10,6 @@ type ReportStatusRow = {
   updated_at: string;
 };
 
-type ReportingProfileRow = {
-  user_id: string;
-  report_ban_type: string;
-  banned_until: string | null;
-  limit_hourly: number;
-  limit_daily: number;
-  strikes: number;
-  last_strike_at: string | null;
-};
-
 function parseStatus(value: unknown): string {
   const normalized = String(value ?? "").toLowerCase();
   if (["open", "investigating", "resolved", "closed", "rejected", "deleted"].includes(normalized)) {
@@ -91,43 +81,32 @@ export async function PUT(
 
   if (status === "rejected") {
     await ensureReportSchema();
-
-    const profileRows = (await sql`
-      SELECT user_id, report_ban_type, banned_until, limit_hourly, limit_daily, strikes, last_strike_at
-      FROM reporting_profiles
-      WHERE user_id = ${updatedReport.user_id}
-    `) as ReportingProfileRow[];
-
-    const currentProfile = profileRows[0] ?? {
-      user_id: updatedReport.user_id,
-      report_ban_type: "none",
-      banned_until: null,
-      limit_hourly: 0,
-      limit_daily: 0,
-      strikes: 0,
-      last_strike_at: null,
-    };
-
-    const nextStrikeCount = currentProfile.strikes + 1;
-    const nextBanType = nextStrikeCount >= 10 ? "permanent" : nextStrikeCount >= 5 ? "temporary" : currentProfile.report_ban_type;
-    const nextBannedUntil = nextBanType === "temporary" ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null;
-
-    if (profileRows.length > 0) {
-      await sql`
-        UPDATE reporting_profiles
-        SET strikes = ${nextStrikeCount}, last_strike_at = NOW(), report_ban_type = ${nextBanType}, banned_until = ${nextBannedUntil}, updated_at = NOW()
-        WHERE user_id = ${updatedReport.user_id};
-      `;
-    } else {
-      await sql`
-        INSERT INTO reporting_profiles (user_id, report_ban_type, banned_until, limit_hourly, limit_daily, strikes, last_strike_at)
-        VALUES (${updatedReport.user_id}, ${nextBanType}, ${nextBannedUntil}, 0, 0, ${nextStrikeCount}, NOW());
-      `;
-    }
-
     await sql`
-      INSERT INTO report_strikes (user_id, report_id, reason, strike_type, points)
-      VALUES (${updatedReport.user_id}, ${id}, 'Report rejected by staff', 'rejected', 1);
+      WITH inserted_strike AS (
+        INSERT INTO report_strikes (user_id, report_id, reason, strike_type, points)
+        VALUES (${updatedReport.user_id}, ${id}, 'Report rejected by staff', 'rejected', 1)
+        ON CONFLICT (report_id, strike_type) WHERE report_id IS NOT NULL DO NOTHING
+        RETURNING user_id
+      )
+      INSERT INTO reporting_profiles (
+        user_id, report_ban_type, banned_until, limit_hourly, limit_daily, strikes, last_strike_at
+      )
+      SELECT user_id, 'none', NULL, 0, 0, 1, NOW()
+      FROM inserted_strike
+      ON CONFLICT (user_id) DO UPDATE SET
+        strikes = reporting_profiles.strikes + 1,
+        last_strike_at = NOW(),
+        report_ban_type = CASE
+          WHEN reporting_profiles.strikes + 1 >= 10 THEN 'permanent'
+          WHEN reporting_profiles.strikes + 1 >= 5 THEN 'temporary'
+          ELSE reporting_profiles.report_ban_type
+        END,
+        banned_until = CASE
+          WHEN reporting_profiles.strikes + 1 >= 10 THEN NULL
+          WHEN reporting_profiles.strikes + 1 >= 5 THEN NOW() + INTERVAL '24 hours'
+          ELSE reporting_profiles.banned_until
+        END,
+        updated_at = NOW();
     `;
   }
 

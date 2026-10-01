@@ -127,7 +127,7 @@ export default function LinkManagerPage() {
   const totalPages = Math.max(1, Math.ceil(filteredLinks.length / PAGE_SIZE));
   const paginatedLinks = filteredLinks.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const lockedCount = links.filter((link) => link.is_locked).length;
-  const totalClicks = links.reduce((sum, link) => sum + (link.click_count ?? 0), 0);
+  const totalClicks = links.reduce((sum, link) => sum + Number(link.click_count ?? 0), 0);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -584,7 +584,7 @@ export default function LinkManagerPage() {
                             <p className="mt-1 truncate text-sm font-medium text-oxford-700 dark:text-slate-200">{link.description || "Untitled link"}</p>
                             <p className="mt-0.5 truncate text-xs text-slate-500">{link.url}</p>
                             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-                              <span>{(link.click_count ?? 0).toLocaleString()} visits</span>
+                              <span>{Number(link.click_count ?? 0).toLocaleString()} visits</span>
                               <span>{link.qr_code_access_enabled ? "Direct QR downloads" : "QR approval required"}</span>
                             {(link.release_at || link.expires_at) && (
                               <span className="contents">

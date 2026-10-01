@@ -14,7 +14,7 @@ async function fetchRedirectsFromDb(): Promise<RedirectRow[]> {
         r.slug,
         r.url,
         r.description,
-        r.click_count,
+        r.click_count::double precision AS click_count,
         r.is_locked,
         r.release_at,
         r.expires_at,
@@ -90,16 +90,18 @@ export async function getRedirectBySlug(rawSlug: string): Promise<RedirectDestin
   }
 }
 
-export function recordClick(rawSlug: string): void {
+export async function recordClick(rawSlug: string): Promise<void> {
   if (!hasDatabaseUrl()) return;
   const slug = rawSlug.trim().toLowerCase();
   if (!slug) return;
   const sql = getSql();
-  sql`
-    UPDATE redirects
-    SET click_count = COALESCE(click_count, 0) + 1
-    WHERE slug = ${slug};
-  `.catch((err) => {
+  try {
+    await sql`
+      UPDATE redirects
+      SET click_count = COALESCE(click_count, 0) + 1
+      WHERE slug = ${slug};
+    `;
+  } catch (err) {
     console.error("Failed to record click for slug:", slug, err);
-  });
+  }
 }

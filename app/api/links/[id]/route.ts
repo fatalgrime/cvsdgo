@@ -21,6 +21,12 @@ type RedirectRow = {
   qr_code_access_enabled: boolean;
 };
 
+type ExistingRedirectRow = RedirectRow & { password_hash: string | null };
+
+function hasOwn(value: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
 function parseUrl(value: string): string | null {
   try {
     const url = new URL(value);
@@ -77,16 +83,32 @@ export async function PUT(
     return new Response("Invalid request", { status: 400 });
   }
 
+  const sql = getSql();
+  const existingRows = (await sql`
+    SELECT id, slug, url, description, click_count, is_locked, password_hash, release_at, expires_at, folder_id, qr_code_access_enabled
+    FROM redirects
+    WHERE id = ${id}
+    LIMIT 1;
+  `) as ExistingRedirectRow[];
+  const existingLink = existingRows[0];
+  if (!existingLink) {
+    return new Response("Not found", { status: 404 });
+  }
+
   const context = getRequestContext(request);
-  const slug = normalizeSlug(String(body.slug ?? ""));
-  const description = String(body.description ?? "").trim() || null;
-  const isLocked = Boolean(body.isLocked);
+  const slug = hasOwn(body, "slug") ? normalizeSlug(String(body.slug ?? "")) : existingLink.slug;
+  const description = hasOwn(body, "description")
+    ? String(body.description ?? "").trim() || null
+    : existingLink.description;
+  const isLocked = hasOwn(body, "isLocked") ? Boolean(body.isLocked) : existingLink.is_locked;
   const password = String(body.password ?? "").trim();
-  const url = parseUrl(String(body.url ?? ""));
-  const releaseAt = parseDate(body.releaseAt);
-  const expiresAt = parseDate(body.expiresAt);
-  const folderId = parseFolderId(body.folderId);
-  const qrCodeAccessEnabled = Boolean(body.qrCodeAccessEnabled);
+  const url = hasOwn(body, "url") ? parseUrl(String(body.url ?? "")) : existingLink.url;
+  const releaseAt = hasOwn(body, "releaseAt") ? parseDate(body.releaseAt) : parseDate(existingLink.release_at);
+  const expiresAt = hasOwn(body, "expiresAt") ? parseDate(body.expiresAt) : parseDate(existingLink.expires_at);
+  const folderId = hasOwn(body, "folderId") ? parseFolderId(body.folderId) : existingLink.folder_id;
+  const qrCodeAccessEnabled = hasOwn(body, "qrCodeAccessEnabled")
+    ? Boolean(body.qrCodeAccessEnabled)
+    : existingLink.qr_code_access_enabled;
 
   if (!slug || !url) {
     return new Response("Invalid input", { status: 400 });
@@ -98,23 +120,22 @@ export async function PUT(
     return new Response("Inappropriate language was detected in this response.", { status: 400 });
   }
 
-  if (body.folderId !== null && body.folderId !== undefined && folderId === null) {
+  if (hasOwn(body, "folderId") && body.folderId !== null && body.folderId !== undefined && folderId === null) {
     return new Response("Folder is invalid", { status: 400 });
   }
   if (isLocked && password && password.length < 4) {
     return new Response("Password must be at least 4 characters", { status: 400 });
   }
-  if (body.releaseAt && !releaseAt) {
+  if (hasOwn(body, "releaseAt") && body.releaseAt && !releaseAt) {
     return new Response("Release time is invalid", { status: 400 });
   }
-  if (body.expiresAt && !expiresAt) {
+  if (hasOwn(body, "expiresAt") && body.expiresAt && !expiresAt) {
     return new Response("Expiration time is invalid", { status: 400 });
   }
   if (releaseAt && expiresAt && releaseAt >= expiresAt) {
     return new Response("Release time must be before expiration time", { status: 400 });
   }
 
-  const sql = getSql();
   const folderExists = await validateFolder(sql, folderId);
   if (!folderExists) {
     return new Response("Folder not found", { status: 404 });
@@ -133,6 +154,15 @@ export async function PUT(
         return new Response("Not found", { status: 404 });
       }
 
+      await logAuditEvent({
+        action: "Link updated",
+        details: `${slug} → ${url}`,
+        actorUserId: (await auth()).userId ?? null,
+        category: "links",
+        source: "link-manager",
+        actorIpAddress: context.actorIpAddress,
+        actorUserAgent: context.actorUserAgent,
+      });
       revalidateTag("redirects");
       return Response.json({ link: rows[0] });
     }
