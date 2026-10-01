@@ -297,12 +297,14 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
 
     const notifyDiscord = shouldNotifyDiscord(input, details);
     const severityLabel = severity.charAt(0).toUpperCase() + severity.slice(1);
-    const actorLines = [
-      username ? `**Account:** ${username}` : null,
-      email ? `**Email:** ${email}` : null,
-      discordUsername ? `**Discord:** @${discordUsername}` : null,
-      discordUserId ? `**Discord ID:** ${discordUserId}` : null,
-    ].filter(Boolean).join("\n") || "Unknown account";
+    const normalizedUsername = username?.trim() || null;
+    const normalizedEmail = email?.trim().toLowerCase() || null;
+    const safeUsername = normalizedUsername
+      && normalizedUsername.toLowerCase() !== normalizedEmail
+      && !normalizedUsername.includes("@")
+      ? normalizedUsername
+      : discordUsername?.trim() || null;
+    const actorLabel = safeUsername ? `**Username:** ${safeUsername}` : "Unknown account";
     const embedColor = severity === "critical" ? 0xdc2626 : severity === "warning" ? 0xd97706 : 0x1d4ed8;
 
     try {
@@ -321,7 +323,7 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
                 { name: "Status", value: severityLabel, inline: true },
                 { name: "Category", value: input.category || "General", inline: true },
                 { name: "Source", value: input.source || "CVSD Go", inline: true },
-                { name: "User", value: actorLines.slice(0, 1024), inline: false },
+                { name: "User", value: actorLabel.slice(0, 1024), inline: false },
                 { name: "Account connections", value: `Discord: ${(input.actorHasDiscordAccount ?? actor.hasDiscordAccount) ? "Connected" : "Not connected"}\nLogin: ${(input.actorHasLoginAccount ?? actor.hasLoginAccount) ? "Available" : "Unavailable"}`, inline: false },
               ],
               footer: { text: "CVSD Go • Administrative activity" },

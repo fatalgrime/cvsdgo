@@ -2,6 +2,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { isReportStaffUser } from "@/lib/access";
 import { getRequestContext, logAuditEvent } from "@/lib/audit";
+import { validateContentWithAutoMod } from "@/lib/automod";
 
 type ReportCommentInsertRow = {
   id: number;
@@ -34,6 +35,14 @@ export async function POST(
   const comment = String(body.comment ?? "").trim();
   if (!comment) {
     return new Response("Comment is required", { status: 400 });
+  }
+
+  const moderation = await validateContentWithAutoMod(comment);
+  if (!moderation.isClean) {
+    return new Response(
+      moderation.reason ?? "Inappropriate language was detected in this response.",
+      { status: 400 }
+    );
   }
 
   const client = await clerkClient();

@@ -895,7 +895,7 @@ export default function UsersPage() {
                     user.allowlisted ||
                     (user.metadataAdmin && user.id === currentUserId) ||
                     (user.metadataAdmin && user.admin && !currentUserAllowlisted);
-                  const reportStaffToggleDisabled = isBusy || user.admin;
+                  const reportStaffToggleDisabled = isBusy || user.allowlisted || user.admin;
                   const protectedRoleTitle = user.allowlisted
                     ? "Protected role granted automatically by the allowlist"
                     : undefined;

@@ -34,14 +34,44 @@ export function ToggleSwitch({ checked, onChange, disabled, id, label, title }: 
   label: string;
   title?: string;
 }) {
+  const trackClasses = disabled
+    ? checked
+      ? "border-slate-500 bg-slate-400 dark:border-slate-400 dark:bg-slate-500"
+      : "border-slate-400 bg-slate-200 dark:border-slate-500 dark:bg-slate-800"
+    : checked
+      ? "border-oxford-700 bg-oxford-700 dark:border-oxford-300 dark:bg-oxford-400"
+      : "border-slate-400 bg-slate-300 dark:border-slate-500 dark:bg-slate-600";
+
   return (
-    <label htmlFor={id} title={title} className={`inline-flex cursor-pointer select-none items-center gap-2 ${disabled ? "cursor-not-allowed opacity-50" : ""}`}>
-      <span className="relative">
-        <input id={id} type="checkbox" role="switch" aria-checked={checked} checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} className="sr-only" />
-        <span aria-hidden="true" className={`block h-5 w-9 rounded-full transition-colors duration-200 ${checked ? "bg-oxford-700" : "bg-slate-300 dark:bg-slate-600"}`} />
-        <span aria-hidden="true" className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${checked ? "translate-x-4" : "translate-x-0"}`} />
+    <label
+      htmlFor={id}
+      title={title}
+      aria-disabled={disabled || undefined}
+      className={`inline-flex select-none items-center gap-2 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+    >
+      <span className="relative shrink-0">
+        <input
+          id={id}
+          type="checkbox"
+          role="switch"
+          aria-checked={checked}
+          checked={checked}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.checked)}
+          className="peer sr-only"
+        />
+        <span
+          aria-hidden="true"
+          className={`block h-5 w-9 rounded-full border transition-colors duration-200 ${trackClasses} peer-focus-visible:ring-2 peer-focus-visible:ring-oxford-400 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900`}
+        />
+        <span
+          aria-hidden="true"
+          className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full border border-slate-300 bg-white shadow-sm transition-transform duration-200 dark:border-slate-400 ${disabled ? "dark:bg-slate-200" : ""} ${checked ? "translate-x-4" : "translate-x-0"}`}
+        />
       </span>
-      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{label}</span>
+      <span className={`text-xs font-medium ${disabled ? "text-slate-500 dark:text-slate-400" : "text-slate-700 dark:text-slate-200"}`}>
+        {label}
+      </span>
     </label>
   );
 }

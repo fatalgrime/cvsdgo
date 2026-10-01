@@ -250,6 +250,16 @@ export default function SupportPage() {
     const adminReason = declineReasonMap[requestId] || "";
     const canAppeal = declineAppealMap[requestId] !== false;
 
+    const moderation = validateContentWithAutoModSync(adminReason);
+    if (!moderation.isClean) {
+      toast({
+        title: "AutoMod Content Warning",
+        description: moderation.reason || "Please use school-appropriate language.",
+        variant: "error",
+      });
+      return;
+    }
+
     try {
       const response = await fetch("/api/admin/qr-requests", {
         method: "POST",

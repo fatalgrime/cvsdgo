@@ -3,6 +3,7 @@ import { getAccessProfile } from "@/lib/access";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureQrSchema } from "@/lib/qr-schema";
 import { logAuditEvent } from "@/lib/audit";
+import { validateContentWithAutoMod } from "@/lib/automod";
 
 type QrRequestRowAdmin = {
   id: number;
@@ -101,6 +102,16 @@ export async function POST(request: Request): Promise<Response> {
 
   const adminReason = body?.adminReason?.trim() ?? null;
   const canAppeal = body?.canAppeal !== false;
+
+  if (adminReason) {
+    const moderation = await validateContentWithAutoMod(adminReason);
+    if (!moderation.isClean) {
+      return new Response(
+        moderation.reason ?? "Inappropriate language was detected in this response.",
+        { status: 400 }
+      );
+    }
+  }
 
   const updated = (await sql`
     UPDATE qr_code_requests

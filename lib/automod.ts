@@ -1,6 +1,8 @@
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 
-// Common profanity words/patterns to filter - blocked words we're generated
+// Keep this list to unambiguous whole words. The matcher deliberately does not
+// use substring matching, which prevents words such as "shoe" from matching
+// the blocked term "hoe".
 const BASE_BLOCKED_TERMS = [
   "fuck",
   "shit",
@@ -12,6 +14,7 @@ const BASE_BLOCKED_TERMS = [
   "pussy",
   "cock",
   "whore",
+  "hoe",
   "slut",
   "nigger",
   "nigga",
@@ -23,7 +26,6 @@ const BASE_BLOCKED_TERMS = [
   "crap",
 ];
 
-// Leetspeak replacements mapping
 const LEET_MAP: Record<string, string> = {
   "@": "a",
   "4": "a",
@@ -38,8 +40,7 @@ const LEET_MAP: Record<string, string> = {
   "+": "t",
 };
 
-// Words that contain profane substrings but are completely legitimate (e.g. Scunthorpe problem)
-const SAFE_WHITELIST = [
+const SAFE_WHITELIST = new Set([
   "class",
   "classes",
   "classify",
@@ -65,11 +66,11 @@ const SAFE_WHITELIST = [
   "analytic",
   "analytics",
   "analysis",
-];
+]);
 
 let customBlockedTermsCache: string[] | null = null;
 let lastCacheFetchTime = 0;
-const CACHE_TTL_MS = 60_000; // 1 minute cache
+const CACHE_TTL_MS = 60_000;
 
 async function getCustomBlockedTerms(): Promise<string[]> {
   if (!hasDatabaseUrl()) return [];
@@ -87,14 +88,13 @@ async function getCustomBlockedTerms(): Promise<string[]> {
     if (rows[0]?.setting_value) {
       const parsed = rows[0].setting_value
         .split(",")
-        .map((t) => t.trim().toLowerCase())
+        .map((term) => term.trim())
         .filter(Boolean);
       customBlockedTermsCache = parsed;
       lastCacheFetchTime = now;
       return parsed;
     }
   } catch {
-    // fallback gracefully if table/setting doesn't exist yet
   }
 
   customBlockedTermsCache = [];
@@ -106,15 +106,87 @@ export function invalidateAutoModCache(): void {
   customBlockedTermsCache = null;
 }
 
-/**
- * Normalizes string by substituting leetspeak characters and stripping punctuation.
- */
 function normalizeText(text: string): string {
-  let normalized = text.toLowerCase();
+  let normalized = text
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .toLowerCase();
+
   for (const [leet, real] of Object.entries(LEET_MAP)) {
     normalized = normalized.replaceAll(leet, real);
   }
   return normalized;
+}
+
+function tokenize(text: string): string[] {
+  return text.match(/[a-z0-9]+/g) ?? [];
+}
+
+function collapseRepeatedCharacters(word: string): string {
+  return word.replace(/([a-z0-9])\1+/g, "$1");
+}
+
+function addSingleCharacterRuns(words: string[], candidates: Set<string>): void {
+  let run = "";
+  for (const word of words) {
+    if (word.length === 1) {
+      run += word;
+      continue;
+    }
+    if (run.length >= 2) candidates.add(run);
+    run = "";
+  }
+  if (run.length >= 2) candidates.add(run);
+}
+
+function getCandidateWords(text: string): Set<string> {
+  const normalized = normalizeText(text);
+  const words = tokenize(normalized);
+
+  const punctuationJoinedWords = tokenize(
+    normalized.replace(/['’‘ʼ]/g, " ").replace(/[^a-z0-9\s]+/g, "")
+  );
+  const candidates = new Set([...words, ...punctuationJoinedWords]);
+
+  for (const word of [...candidates]) {
+    candidates.add(collapseRepeatedCharacters(word));
+  }
+  addSingleCharacterRuns(words, candidates);
+
+  return candidates;
+}
+
+function containsTokenSequence(words: string[], sequence: string[]): boolean {
+  if (sequence.length === 0 || sequence.length > words.length) return false;
+  for (let start = 0; start <= words.length - sequence.length; start += 1) {
+    if (sequence.every((word, offset) => words[start + offset] === word)) return true;
+  }
+  return false;
+}
+
+function findBlockedTerm(text: string, terms: string[]): string | undefined {
+  const normalized = normalizeText(text);
+  const words = tokenize(normalized);
+  const candidates = getCandidateWords(text);
+
+  for (const originalTerm of terms) {
+    const normalizedTermWords = tokenize(normalizeText(originalTerm));
+    if (normalizedTermWords.length === 0) continue;
+
+    if (normalizedTermWords.length > 1) {
+      if (containsTokenSequence(words, normalizedTermWords)) return originalTerm;
+      continue;
+    }
+
+    const term = normalizedTermWords[0];
+    if (SAFE_WHITELIST.has(term)) continue;
+    if (candidates.has(term) || candidates.has(collapseRepeatedCharacters(term))) {
+      return originalTerm;
+    }
+  }
+
+  return undefined;
 }
 
 export type AutoModResult = {
@@ -123,91 +195,24 @@ export type AutoModResult = {
   reason?: string;
 };
 
-/**
- * Validates text against the AutoMod system.
- * Returns isClean: true if acceptable, or isClean: false with reason if blocked.
- */
-export async function validateContentWithAutoMod(text: string): Promise<AutoModResult> {
-  if (!text || typeof text !== "string") {
-    return { isClean: true };
-  }
-
-  const rawLower = text.toLowerCase();
-  const normalized = normalizeText(text);
-
-  // Fetch custom blocked terms if configured in site_settings
-  const customTerms = await getCustomBlockedTerms();
-  const allBlockedTerms = Array.from(new Set([...BASE_BLOCKED_TERMS, ...customTerms]));
-
-  // Tokenize words to check whole words and whitelisted terms
-  const words = normalized.split(/[^a-z0-9]+/i).filter(Boolean);
-  const rawWords = rawLower.split(/[^a-z0-9]+/i).filter(Boolean);
-
-  for (const word of words) {
-    // Skip if word is in whitelist
-    if (SAFE_WHITELIST.includes(word)) {
-      continue;
-    }
-
-    for (const term of allBlockedTerms) {
-      // Direct exact match on word
-      if (word === term) {
-        return {
-          isClean: false,
-          blockedTerm: term,
-          reason: `Content contains inappropriate or profane language blocked by AutoMod ("${term}").`,
-        };
-      }
-
-    }
-  }
-
-  // Also check raw words in case leetspeak normalization caused false positives
-  for (const word of rawWords) {
-    if (SAFE_WHITELIST.includes(word)) {
-      continue;
-    }
-    for (const term of customTerms) {
-      if (word === term) {
-        return {
-          isClean: false,
-          blockedTerm: term,
-          reason: `Content contains inappropriate or profane language blocked by AutoMod ("${term}").`,
-        };
-      }
-    }
-  }
-
-  return { isClean: true };
+function blockedResult(term: string): AutoModResult {
+  return {
+    isClean: false,
+    blockedTerm: term,
+    reason: "Inappropriate language was detected in this response.",
+  };
 }
 
-/**
- * Synchronous client-side check for quick UI feedback
- */
+export async function validateContentWithAutoMod(text: string): Promise<AutoModResult> {
+  if (!text || typeof text !== "string") return { isClean: true };
+
+  const customTerms = await getCustomBlockedTerms();
+  const blockedTerm = findBlockedTerm(text, [...BASE_BLOCKED_TERMS, ...customTerms]);
+  return blockedTerm ? blockedResult(blockedTerm) : { isClean: true };
+}
 export function validateContentWithAutoModSync(text: string): AutoModResult {
-  if (!text || typeof text !== "string") {
-    return { isClean: true };
-  }
+  if (!text || typeof text !== "string") return { isClean: true };
 
-  const normalized = normalizeText(text);
-  const words = normalized.split(/[^a-z0-9]+/i).filter(Boolean);
-
-  for (const word of words) {
-    if (SAFE_WHITELIST.includes(word)) {
-      continue;
-    }
-
-    for (const term of BASE_BLOCKED_TERMS) {
-      if (word === term) {
-        return {
-          isClean: false,
-          blockedTerm: term,
-          reason: `Content contains inappropriate or profane language blocked by AutoMod ("${term}").`,
-        };
-      }
-
-    }
-  }
-
-  return { isClean: true };
+  const blockedTerm = findBlockedTerm(text, BASE_BLOCKED_TERMS);
+  return blockedTerm ? blockedResult(blockedTerm) : { isClean: true };
 }
