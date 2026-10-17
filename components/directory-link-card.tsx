@@ -31,7 +31,7 @@ export function DirectoryLinkCard({ link, copied, onCopy }: DirectoryLinkCardPro
           )}
         </div>
         <h3 className="mt-3.5 line-clamp-2 text-base font-bold leading-snug text-oxford-700 dark:text-slate-100">
-          {link.description || link.url}
+          {link.description || (link.is_locked ? "Protected destination" : link.url)}
         </h3>
       </div>
 

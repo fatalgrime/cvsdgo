@@ -12,7 +12,7 @@ async function fetchRedirectsFromDb(): Promise<RedirectRow[]> {
       SELECT
         r.id,
         r.slug,
-        r.url,
+        CASE WHEN r.is_locked THEN '' ELSE r.url END AS url,
         r.description,
         r.click_count::double precision AS click_count,
         r.is_locked,
@@ -40,7 +40,7 @@ const getAllRedirectsCached = unstable_cache(
   async (): Promise<RedirectRow[]> => {
     return fetchRedirectsFromDb();
   },
-  ["redirects:all"],
+  ["redirects:public:v2"],
   { revalidate: 60, tags: ["redirects"] }
 );
 
@@ -57,10 +57,11 @@ export async function getAllRedirects(): Promise<RedirectRow[]> {
 
   // Fallback to direct DB query if cached output is empty
   if (!cached || cached.length === 0) {
-    return await fetchRedirectsFromDb();
+    cached = await fetchRedirectsFromDb();
   }
 
-  return cached;
+  // Sanitize at the public boundary too, including results from the cache.
+  return cached.map((link) => link.is_locked ? { ...link, url: "" } : link);
 }
 
 export type RedirectDestinationInfo = {

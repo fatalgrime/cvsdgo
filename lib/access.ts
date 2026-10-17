@@ -2,7 +2,6 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import type { User } from "@clerk/backend";
 
 const ALLOWED_DISCORD_ID = "1012507248305647718";
-const ALLOWED_USERNAMES = ["admin"];
 export const WEBHOOK_EDIT_USER_ID = "user_3AhQ5Y8oIecKRmPgo7mEtNduoaW";
 
 const ACCESS_CACHE_TTL_MS = 30_000;
@@ -89,10 +88,8 @@ function buildAccessProfile(user: User): AccessProfile {
       account.providerUserId === ALLOWED_DISCORD_ID &&
       account.provider.toLowerCase().includes("discord")
   );
-  const allowedByUsername =
-    typeof user.username === "string" &&
-    ALLOWED_USERNAMES.includes(user.username.toLowerCase());
-  const allowlisted = allowedByDiscord || allowedByUsername;
+  // Usernames are editable and must never confer administrative privileges.
+  const allowlisted = allowedByDiscord;
   const admin = allowlisted || metadata.admin === true;
   const reportStaff = admin || metadata.reportStaff === true;
 

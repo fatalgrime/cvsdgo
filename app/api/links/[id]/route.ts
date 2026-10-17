@@ -1,7 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
-import { normalizeSlug } from "@/lib/normalize";
+import { normalizeSlug, parseDestinationUrl } from "@/lib/normalize";
 import { hashPassword } from "@/lib/password";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
@@ -25,15 +25,6 @@ type ExistingRedirectRow = RedirectRow & { password_hash: string | null };
 
 function hasOwn(value: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
-}
-
-function parseUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    return url.toString();
-  } catch {
-    return null;
-  }
 }
 
 function parseDate(value: unknown): Date | null {
@@ -102,7 +93,7 @@ export async function PUT(
     : existingLink.description;
   const isLocked = hasOwn(body, "isLocked") ? Boolean(body.isLocked) : existingLink.is_locked;
   const password = String(body.password ?? "").trim();
-  const url = hasOwn(body, "url") ? parseUrl(String(body.url ?? "")) : existingLink.url;
+  const url = hasOwn(body, "url") ? parseDestinationUrl(String(body.url ?? "")) : existingLink.url;
   const releaseAt = hasOwn(body, "releaseAt") ? parseDate(body.releaseAt) : parseDate(existingLink.release_at);
   const expiresAt = hasOwn(body, "expiresAt") ? parseDate(body.expiresAt) : parseDate(existingLink.expires_at);
   const folderId = hasOwn(body, "folderId") ? parseFolderId(body.folderId) : existingLink.folder_id;

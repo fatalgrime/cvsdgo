@@ -1,7 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
-import { normalizeSlug } from "@/lib/normalize";
+import { normalizeSlug, parseDestinationUrl } from "@/lib/normalize";
 import { hashPassword } from "@/lib/password";
 import { requireAllowedUser } from "@/lib/access";
 import { ensureLinkSchema } from "@/lib/link-schema";
@@ -22,15 +22,6 @@ type RedirectRow = {
   folder_is_public: boolean | null;
   qr_code_access_enabled: boolean;
 };
-
-function parseUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
 
 function parseDate(value: unknown): Date | null {
   if (value === null || value === undefined || value === "") return null;
@@ -112,7 +103,7 @@ export async function POST(request: Request): Promise<Response> {
   const description = String(body.description ?? "").trim() || null;
   const isLocked = Boolean(body.isLocked);
   const password = String(body.password ?? "").trim();
-  const url = parseUrl(String(body.url ?? ""));
+  const url = parseDestinationUrl(String(body.url ?? ""));
   const releaseAt = parseDate(body.releaseAt);
   const expiresAt = parseDate(body.expiresAt);
   const folderId = parseFolderId(body.folderId);
