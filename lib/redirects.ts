@@ -61,7 +61,12 @@ export async function getAllRedirects(): Promise<RedirectRow[]> {
   }
 
   // Sanitize at the public boundary too, including results from the cache.
-  return cached.map((link) => link.is_locked ? { ...link, url: "" } : link);
+  const now = Date.now();
+  return cached.filter((link) => {
+    const release = link.release_at == null ? -Infinity : new Date(link.release_at).getTime();
+    const expires = link.expires_at == null ? Infinity : new Date(link.expires_at).getTime();
+    return release <= now && expires > now;
+  }).map((link) => link.is_locked ? { ...link, url: "" } : link);
 }
 
 export type RedirectDestinationInfo = {

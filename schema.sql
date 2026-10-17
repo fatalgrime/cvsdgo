@@ -104,3 +104,17 @@ VALUES
   ('enroll', 'https://www.cvsd.org/enroll', 'Enrollment Portal'),
   ('calendar', 'https://www.cvsd.org/calendar', 'District Calendar')
 ON CONFLICT (slug) DO NOTHING;
+
+-- Independent of reports so deleting a report cannot reset submission quotas.
+CREATE TABLE IF NOT EXISTS report_submissions (
+  report_id BIGINT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS report_submissions_user_time_idx ON report_submissions (user_id, created_at);
+
+CREATE TABLE IF NOT EXISTS link_unlock_attempts (
+  slug TEXT PRIMARY KEY,
+  window_start TIMESTAMPTZ NOT NULL,
+  attempts INTEGER NOT NULL
+);

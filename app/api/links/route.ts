@@ -143,7 +143,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const passwordHash = isLocked ? hashPassword(password) : null;
+    const passwordHash = isLocked ? await hashPassword(password) : null;
     const rows = (await sql`
       INSERT INTO redirects (slug, url, description, folder_id, is_locked, password_hash, release_at, expires_at, qr_code_access_enabled)
       VALUES (${slug}, ${url}, ${description}, ${folderId}, ${isLocked}, ${passwordHash}, ${releaseAt}, ${expiresAt}, ${qrCodeAccessEnabled})

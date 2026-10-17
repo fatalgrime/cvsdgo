@@ -1,3 +1,4 @@
+import { consumeUnlockAttempt } from "@/lib/unlock-rate-limit";
 import { auth } from "@clerk/nextjs/server";
 import { getAccessProfile } from "@/lib/access";
 import { hasDatabaseUrl } from "@/lib/db";
@@ -42,7 +43,7 @@ export async function GET(
   if (releaseAt && now < releaseAt) {
     return Response.json({ destinationUrl: null, inactive: true, reason: "scheduled" }, { status: 404 });
   }
-  if (expiresAt && now > expiresAt) {
+  if (expiresAt && now >= expiresAt) {
     return Response.json({ destinationUrl: null, inactive: true, reason: "expired" }, { status: 404 });
   }
 
@@ -85,7 +86,7 @@ export async function POST(
   if (releaseAt && now < releaseAt) {
     return Response.json({ destinationUrl: null, inactive: true, reason: "scheduled" }, { status: 404 });
   }
-  if (expiresAt && now > expiresAt) {
+  if (expiresAt && now >= expiresAt) {
     return Response.json({ destinationUrl: null, inactive: true, reason: "expired" }, { status: 404 });
   }
 
@@ -95,7 +96,17 @@ export async function POST(
       return new Response("Forbidden", { status: 403 });
     }
   } else {
-    const isValid = verifyPassword(password, destination.password_hash);
+    try {
+      if (!await consumeUnlockAttempt(rawSlug)) {
+        return new Response("Too many unlock attempts. Please try again in a minute.", {
+          status: 429, headers: { "Retry-After": "60" },
+        });
+      }
+    } catch (error) {
+      console.error("Unable to check unlock attempt limit:", error);
+      return new Response("Unlock temporarily unavailable", { status: 503 });
+    }
+    const isValid = await verifyPassword(password, destination.password_hash);
     if (!isValid) {
       return new Response("Invalid password", { status: 401 });
     }

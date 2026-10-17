@@ -159,7 +159,7 @@ export async function PUT(
     }
 
     if (password) {
-      const passwordHash = hashPassword(password);
+      const passwordHash = await hashPassword(password);
       const rows = (await sql`
         UPDATE redirects
         SET slug = ${slug}, url = ${url}, description = ${description}, folder_id = ${folderId}, is_locked = true, password_hash = ${passwordHash}, release_at = ${releaseAt}, expires_at = ${expiresAt}, qr_code_access_enabled = ${qrCodeAccessEnabled}, updated_at = NOW()
