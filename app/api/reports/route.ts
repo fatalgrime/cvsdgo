@@ -56,7 +56,10 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Database not configured", { status: 500 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return new Response("Expected a JSON object", { status: 400 });
+  }
   const title = String(body.title ?? "").trim();
   const description = String(body.description ?? "").trim();
   const linkSlug = String(body.linkSlug ?? "").trim() || null;

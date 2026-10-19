@@ -1,3 +1,5 @@
+import { AnnouncementBanner } from "@/components/announcement-banner";
+import { getAnnouncements } from "@/lib/announcements";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
@@ -15,6 +17,10 @@ const SettingsDialog = dynamic(() => import("@/components/settings-dialog").then
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
   const access = await getAccessProfile(userId);
+  const announcements = await getAnnouncements().catch((error) => {
+    console.error("Unable to load announcement banner", error);
+    return [];
+  });
   const isStaff = access.canManageLinks || access.canManageReports;
   const sidebarItems = [
     { href: "/", label: "Link Directory" },
@@ -26,6 +32,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     sidebarItems.push({ href: "/site/users", label: "Users" });
     sidebarItems.push({ href: "/site/status", label: "Status" });
   }
+
+  if (access.admin) sidebarItems.push({ href: "/site/announcements", label: "Announcements" });
 
   return (
     <AccessProvider profile={{ authenticated: Boolean(userId), ...access }}>
@@ -61,6 +69,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
       {/* Mobile Header Nav Drawer Bar */}
       <MobileNav items={sidebarItems} />
+      <AnnouncementBanner initial={announcements} />
 
       <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[250px_1fr] lg:px-8">
         <aside className="hidden panel border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-950/80 lg:block lg:sticky lg:top-24 lg:h-[calc(100vh-7.5rem)] lg:overflow-auto">

@@ -43,7 +43,10 @@ export async function PUT(
   }
 
   const { id } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return new Response("Expected a JSON object", { status: 400 });
+  }
   const context = getRequestContext(request);
   const status = parseStatus(body.status);
 
@@ -55,19 +58,53 @@ export async function PUT(
   const handler = await client.users.getUser(userId);
   const handlerName = getDisplayName(handler.firstName, handler.lastName, handler.username);
 
+  await ensureReportSchema();
   const sql = getSql();
+  // One statement commits the status, strike and penalty together, or rolls
+  // them all back. The unique strike constraint makes repeated rejection safe.
   const rows = (await sql`
-    UPDATE reports
-    SET status = ${status}, handled_by_user_id = ${userId}, handled_by_name = ${handlerName}, updated_at = NOW()
-    WHERE id = ${id}
-    RETURNING id, user_id, status, updated_at;
-  `) as ReportStatusRow & { user_id: string }[];
+    WITH updated_report AS (
+      UPDATE reports
+      SET status = ${status}, handled_by_user_id = ${userId}, handled_by_name = ${handlerName}, updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING id, user_id, status, updated_at
+    ), inserted_strike AS (
+      INSERT INTO report_strikes (user_id, report_id, reason, strike_type, points)
+      SELECT user_id, id, 'Report rejected by staff', 'rejected', 1
+      FROM updated_report WHERE status = 'rejected'
+      ON CONFLICT (report_id, strike_type) WHERE report_id IS NOT NULL DO NOTHING
+      RETURNING user_id
+    ), updated_profile AS (
+      INSERT INTO reporting_profiles (
+        user_id, report_ban_type, banned_until, limit_hourly, limit_daily, strikes, last_strike_at
+      )
+      SELECT user_id, 'none', NULL, 0, 0, 1, NOW()
+      FROM inserted_strike
+      ON CONFLICT (user_id) DO UPDATE SET
+        strikes = reporting_profiles.strikes + 1,
+        last_strike_at = NOW(),
+        report_ban_type = CASE
+          WHEN reporting_profiles.report_ban_type = 'permanent'
+            OR reporting_profiles.strikes + 1 >= 10 THEN 'permanent'
+          WHEN reporting_profiles.strikes + 1 >= 5 THEN 'temporary'
+          ELSE reporting_profiles.report_ban_type
+        END,
+        banned_until = CASE
+          WHEN reporting_profiles.report_ban_type = 'permanent'
+            OR reporting_profiles.strikes + 1 >= 10 THEN NULL
+          WHEN reporting_profiles.strikes + 1 >= 5
+            THEN GREATEST(reporting_profiles.banned_until, NOW() + INTERVAL '24 hours')
+          ELSE reporting_profiles.banned_until
+        END,
+        updated_at = NOW()
+    )
+    SELECT id, user_id, status, updated_at FROM updated_report;
+  `) as (ReportStatusRow & { user_id: string })[];
 
   if (rows.length === 0) {
     return new Response("Not found", { status: 404 });
   }
 
-  const updatedReport = rows[0];
   await logAuditEvent({
     action: `Report ${status}`,
     details: `Report #${id} changed to ${status}`,
@@ -78,37 +115,6 @@ export async function PUT(
     actorIpAddress: context.actorIpAddress,
     actorUserAgent: context.actorUserAgent,
   });
-
-  if (status === "rejected") {
-    await ensureReportSchema();
-    await sql`
-      WITH inserted_strike AS (
-        INSERT INTO report_strikes (user_id, report_id, reason, strike_type, points)
-        VALUES (${updatedReport.user_id}, ${id}, 'Report rejected by staff', 'rejected', 1)
-        ON CONFLICT (report_id, strike_type) WHERE report_id IS NOT NULL DO NOTHING
-        RETURNING user_id
-      )
-      INSERT INTO reporting_profiles (
-        user_id, report_ban_type, banned_until, limit_hourly, limit_daily, strikes, last_strike_at
-      )
-      SELECT user_id, 'none', NULL, 0, 0, 1, NOW()
-      FROM inserted_strike
-      ON CONFLICT (user_id) DO UPDATE SET
-        strikes = reporting_profiles.strikes + 1,
-        last_strike_at = NOW(),
-        report_ban_type = CASE
-          WHEN reporting_profiles.strikes + 1 >= 10 THEN 'permanent'
-          WHEN reporting_profiles.strikes + 1 >= 5 THEN 'temporary'
-          ELSE reporting_profiles.report_ban_type
-        END,
-        banned_until = CASE
-          WHEN reporting_profiles.strikes + 1 >= 10 THEN NULL
-          WHEN reporting_profiles.strikes + 1 >= 5 THEN NOW() + INTERVAL '24 hours'
-          ELSE reporting_profiles.banned_until
-        END,
-        updated_at = NOW();
-    `;
-  }
 
   return Response.json({ report: rows[0] });
 }

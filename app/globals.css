@@ -223,3 +223,23 @@ img[alt*="QR Code"] {
   -webkit-user-select: none !important;
   -ms-user-select: none !important;
 }
+
+/* Scoped colors keep announcements independent of global theme overrides. */
+.announcement-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid var(--announcement-border);
+  border-radius: 0.875rem;
+  padding: 0.875rem 1rem;
+  color: var(--announcement-text);
+  background: var(--announcement-bg);
+}
+.announcement-info { --announcement-bg: #eff6ff; --announcement-border: #bfdbfe; --announcement-text: #1e3a8a; }
+.announcement-success { --announcement-bg: #ecfdf5; --announcement-border: #a7f3d0; --announcement-text: #064e3b; }
+.announcement-warning { --announcement-bg: #fffbeb; --announcement-border: #fde68a; --announcement-text: #78350f; }
+.dark .announcement-info { --announcement-bg: #172943; --announcement-border: #36567e; --announcement-text: #dbeafe; }
+.dark .announcement-success { --announcement-bg: #12352d; --announcement-border: #28634f; --announcement-text: #d1fae5; }
+.dark .announcement-warning { --announcement-bg: #382b16; --announcement-border: #725328; --announcement-text: #fef3c7; }
+.announcement-dismiss:hover { background: rgb(0 0 0 / 0.06); }
+.dark .announcement-dismiss:hover { background: rgb(255 255 255 / 0.1); }

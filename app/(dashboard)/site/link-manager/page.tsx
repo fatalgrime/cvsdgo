@@ -755,31 +755,30 @@ export default function LinkManagerPage() {
                 {isEditing && <button type="button" onClick={resetForm} className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Cancel</button>}
               </div>
             </div>
-            <div className="p-5">
-            <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+            <form className="space-y-4 px-5 py-4" onSubmit={handleSubmit}>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500" htmlFor="slug">Slug</label>
-                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-                  <span className="text-xs font-semibold text-slate-400">go.cvsd.live/</span>
+                <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400" htmlFor="slug">Slug</label>
+                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 focus-within:border-oxford-700 focus-within:ring-1 focus-within:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900">
+                  <span className="shrink-0 text-xs font-semibold text-slate-400">go.cvsd.live/</span>
                   <input id="slug" value={form.slug} onChange={(event) => updateField("slug", event.target.value)}
-                    className="w-full border-none bg-transparent text-sm text-oxford-700 outline-none dark:text-slate-100"
+                    className="min-w-0 w-full border-none bg-transparent text-sm text-oxford-700 outline-none dark:text-slate-100"
                     placeholder="destination" required />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500" htmlFor="url">Destination URL</label>
+                <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400" htmlFor="url">Destination URL</label>
                 <input id="url" type="url" value={form.url} onChange={(event) => updateField("url", event.target.value)}
                   className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                   placeholder="https://www.cvsd.live" required />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500" htmlFor="description">Title</label>
+                <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400" htmlFor="description">Title</label>
                 <input id="description" value={form.description} onChange={(event) => updateField("description", event.target.value)}
                   className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                   placeholder="Enrollment Portal" />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500" htmlFor="folderId">Folder</label>
+                <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400" htmlFor="folderId">Folder</label>
                 <select id="folderId" value={form.folderId} onChange={(event) => updateField("folderId", event.target.value)}
                   className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
                   <option value="">No folder</option>
@@ -790,13 +789,13 @@ export default function LinkManagerPage() {
               </div>
               <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500" htmlFor="releaseAt">Release Time</label>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400" htmlFor="releaseAt">Release Time</label>
                   <input id="releaseAt" type="datetime-local" value={form.releaseAt ?? ""} onChange={(event) => updateField("releaseAt", event.target.value)}
                     className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                   <p className="mt-1 text-xs text-slate-400">Leave empty to make the link active immediately.</p>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500" htmlFor="expiresAt">Expiration Time</label>
+                  <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400" htmlFor="expiresAt">Expiration Time</label>
                   <input id="expiresAt" type="datetime-local" value={form.expiresAt ?? ""} onChange={(event) => updateField("expiresAt", event.target.value)}
                     className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                   <p className="mt-1 text-xs text-slate-400">Leave empty to keep the link active indefinitely.</p>
@@ -824,7 +823,7 @@ export default function LinkManagerPage() {
                 </label>
                 {form.isLocked && (
                   <div className="mt-3">
-                    <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500" htmlFor="password">Password</label>
+                    <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400" htmlFor="password">Password</label>
                     <input id="password" type="password" value={form.password} onChange={(event) => updateField("password", event.target.value)}
                       className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-oxford-700 outline-none focus:border-oxford-700 focus:ring-1 focus:ring-oxford-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                       placeholder={isEditing ? "Leave blank to keep current password" : "Enter a password"} />
@@ -844,7 +843,6 @@ export default function LinkManagerPage() {
                 </button>
               </div>
             </form>
-            </div>
           </div>
         </div>
       </SignedIn>

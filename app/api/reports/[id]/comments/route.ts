@@ -31,7 +31,10 @@ export async function POST(
   }
 
   const { id } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return new Response("Expected a JSON object", { status: 400 });
+  }
   const comment = String(body.comment ?? "").trim();
   if (!comment) {
     return new Response("Comment is required", { status: 400 });

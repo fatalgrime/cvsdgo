@@ -7,25 +7,10 @@ async function runEnsureLinkSchema(): Promise<void> {
 
   const sql = getSql();
 
-  try {
-    await sql`
-      ALTER TABLE redirects
-      ADD COLUMN IF NOT EXISTS qr_code_access_enabled BOOLEAN NOT NULL DEFAULT FALSE;
-    `;
-  } catch (error) {
-    console.error("Error adding qr_code_access_enabled column:", error);
-  }
-
-  try {
-    const check = (await sql`
-      SELECT 1 FROM information_schema.tables WHERE table_name = 'link_folders' LIMIT 1;
-    `) as unknown[];
-
-    if (check.length > 0) {
-      return;
-    }
-  } catch {
-  }
+  await sql`
+    ALTER TABLE redirects
+    ADD COLUMN IF NOT EXISTS qr_code_access_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+  `;
 
   await sql`
     CREATE TABLE IF NOT EXISTS link_folders (
@@ -36,6 +21,11 @@ async function runEnsureLinkSchema(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `;
+
+  await sql`
+    ALTER TABLE link_folders
+    ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
   `;
 
   await sql`

@@ -5,16 +5,16 @@ const { test } = require('node:test');
 const ts = require('typescript');
 
 // Load TypeScript with explicit service mocks; no live database or Clerk account.
-function load(relativePath, mocks = {}) {
+function load(relativePath, mocks = {}, globals = {}) {
   const filename = path.resolve(__dirname, '..', relativePath);
   const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', source)((name) => {
+  new Function('require', 'module', 'exports', ...Object.keys(globals), source)((name) => {
     if (Object.hasOwn(mocks, name)) return mocks[name];
     throw new Error(`Unexpected dependency: ${name}`);
-  }, module, module.exports);
+  }, module, module.exports, ...Object.values(globals));
   return module.exports;
 }
 
@@ -248,4 +248,252 @@ test('submission outcome maps quota denials to 429 and bans to 403', async () =>
     assert.equal(response.status, reason === 'banned' ? 403 : reason ? 429 : 201);
     assert.equal(audits, reason ? 0 : 1);
   }
+});
+
+test('report endpoints reject malformed and non-object JSON without writes', async () => {
+  for (const [file, method] of [
+    ['app/api/reports/route.ts', 'POST'],
+    ['app/api/reports/[id]/route.ts', 'PUT'],
+    ['app/api/reports/[id]/comments/route.ts', 'POST'],
+  ]) {
+    const route = load(file, {
+      '@clerk/nextjs/server': {
+        auth: async () => ({ userId: 'staff' }),
+        clerkClient: async () => { throw new Error('Invalid body reached Clerk'); },
+      },
+      '@/lib/db': { hasDatabaseUrl: () => true, getSql: () => { throw new Error('Invalid body reached database'); } },
+      '@/lib/report-schema': { ensureReportSchema: async () => { throw new Error('Invalid body reached migration'); } },
+      '@/lib/access': { isReportStaffUser: async () => true },
+      '@/lib/audit': {},
+      '@/lib/automod': {},
+      '@/lib/report-submissions': {},
+    });
+    for (const body of ['', '{', 'null', '[]', '"text"', 'true', '42']) {
+      const response = await route[method](new Request('https://example.com/api/reports/1', {
+        method, body,
+      }), { params: Promise.resolve({ id: '1' }) });
+      assert.equal(response.status, 400, `${file}: ${body}`);
+    }
+  }
+});
+
+test('folder schema repairs an existing table and retries failed migrations', async () => {
+  let fail = true;
+  const columns = new Set(['id', 'name', 'is_public']);
+  const sql = async (parts) => {
+    const text = parts.join('?');
+    // Existing table: CREATE IF NOT EXISTS leaves its old columns unchanged.
+    if (/ALTER TABLE link_folders/.test(text)) {
+      if (fail) { fail = false; throw new Error('Temporary migration failure'); }
+      columns.add('sort_order');
+    }
+    if (/ALTER TABLE redirects/.test(text) && /folder_id/.test(text)) columns.add('folder_id');
+    return [{ exists: true }];
+  };
+  const schema = load('lib/link-schema.ts', {
+    '@/lib/db': { hasDatabaseUrl: () => true, getSql: () => sql },
+  });
+  await assert.rejects(schema.ensureLinkSchema(), /Temporary migration failure/);
+  await schema.ensureLinkSchema();
+  assert.ok(columns.has('sort_order'));
+  assert.ok(columns.has('folder_id'));
+});
+
+function reportStatusRoute(sql) {
+  const events = [];
+  return {
+    events,
+    route: load('app/api/reports/[id]/route.ts', {
+      '@clerk/nextjs/server': {
+        auth: async () => ({ userId: 'staff' }),
+        clerkClient: async () => ({ users: { getUser: async () => ({ firstName: 'Staff', lastName: null, username: 'staff' }) } }),
+      },
+      '@/lib/db': { hasDatabaseUrl: () => true, getSql: () => sql },
+      '@/lib/report-schema': { ensureReportSchema: async () => {} },
+      '@/lib/access': { isReportStaffUser: async () => true },
+      '@/lib/audit': { getRequestContext: () => ({}), logAuditEvent: async (event) => { events.push(event); } },
+    }),
+  };
+}
+
+test('report status and penalties are sent as one database operation before auditing', async () => {
+  for (const status of ['rejected', 'resolved']) {
+    let writes = 0;
+    const { route, events } = reportStatusRoute(async () => {
+      writes++;
+      assert.equal(events.length, 0);
+      return [{ id: 1, user_id: 'reporter', status }];
+    });
+    const response = await route.PUT(new Request('https://example.com/api/reports/1', {
+      method: 'PUT', body: JSON.stringify({ status }),
+    }), { params: Promise.resolve({ id: '1' }) });
+    assert.equal(response.status, 200);
+    assert.equal(writes, 1);
+    assert.equal(events.length, 1);
+    assert.equal((await response.json()).report.status, status);
+  }
+});
+
+test('failed or missing report updates do not emit success audits', async () => {
+  for (const fail of [true, false]) {
+    const { route, events } = reportStatusRoute(async () => {
+      if (fail) throw new Error('Penalty write failed');
+      return [];
+    });
+    const pending = route.PUT(new Request('https://example.com/api/reports/1', {
+      method: 'PUT', body: JSON.stringify({ status: 'rejected' }),
+    }), { params: Promise.resolve({ id: '1' }) });
+    if (fail) await assert.rejects(pending, /Penalty write failed/);
+    else assert.equal((await pending).status, 404);
+    assert.equal(events.length, 0);
+  }
+});
+
+const announcementTypes = load('lib/announcement-types.ts');
+const announcementInput = { title: 'District update', message: 'School opens at 9.', tone: 'info', dismissible: true, published: false };
+
+test('announcement validation enforces lengths, settings and supported tones', () => {
+  assert.deepEqual(announcementTypes.parseAnnouncement({ ...announcementInput, title: '  District update  ' }), announcementInput);
+  for (const value of [null, [], 'text', {},
+    { ...announcementInput, title: ' ' }, { ...announcementInput, title: 'a'.repeat(101) },
+    { ...announcementInput, message: 'a'.repeat(1001) }, { ...announcementInput, message: '' },
+    { ...announcementInput, published: 'true' }, { ...announcementInput, dismissible: 1 },
+    { ...announcementInput, tone: ['info'] }, { ...announcementInput, tone: 'invalid' },
+  ]) assert.equal(announcementTypes.parseAnnouncement(value), null);
+  assert.notEqual(announcementTypes.announcementKey({ id: '1', revision: 1 }), announcementTypes.announcementKey({ id: '1', revision: 2 }));
+});
+
+function announcementAdmin({ denied = null, rows = [{ id: '1' }] } = {}) {
+  let writes = 0;
+  const audits = [];
+  const route = load('app/api/admin/announcements/route.ts', {
+    '@clerk/nextjs/server': { auth: async () => ({ userId: 'admin-1' }) },
+    '@/lib/audit': { getRequestContext: () => ({ actorIpAddress: '127.0.0.1' }), logAuditEvent: async event => { audits.push(event); } },
+    '@/lib/access': { requireAdminUser: async () => denied },
+    '@/lib/db': { hasDatabaseUrl: () => true, getSql: () => async () => { writes++; return rows; } },
+    '@/lib/announcements': { ensureAnnouncementSchema: async () => {}, getAnnouncements: async (drafts) => { assert.equal(drafts, true); return []; } },
+    '@/lib/announcement-types': announcementTypes,
+  });
+  return { route, writes: () => writes, audits };
+}
+
+test('all announcement administration endpoints reject unauthorized callers', async () => {
+  for (const status of [401, 403]) {
+    for (const method of ['GET', 'POST', 'PUT', 'DELETE']) {
+      const { route, writes } = announcementAdmin({ denied: new Response('Denied', { status }) });
+      const response = await route[method](new Request('https://example.com/api/admin/announcements', {
+        method, ...(method === 'GET' ? {} : { body: JSON.stringify({ ...announcementInput, id: '1' }) }),
+      }));
+      assert.equal(response.status, status);
+      assert.equal(writes(), 0);
+    }
+  }
+});
+
+test('announcement create, edit, delete validate input and return useful results', async () => {
+  for (const method of ['POST', 'PUT', 'DELETE']) {
+    const { route, writes } = announcementAdmin();
+    const response = await route[method](new Request('https://example.com/api/admin/announcements', { method, body: JSON.stringify({ ...announcementInput, id: '1' }) }));
+    assert.equal(response.status, method === 'POST' ? 201 : 200);
+    assert.equal(writes(), 1);
+    for (const body of ['{', 'null', '[]', JSON.stringify({ id: '-1' }), JSON.stringify({ ...announcementInput, id: '9223372036854775808', title: '' })]) {
+      assert.equal((await route[method](new Request('https://example.com/api/admin/announcements', { method, body }))).status, 400);
+    }
+    assert.equal(writes(), 1);
+  }
+  const { route } = announcementAdmin({ rows: [] });
+  assert.equal((await route.DELETE(new Request('https://example.com/api/admin/announcements', { method: 'DELETE', body: '{"id":"1"}' }))).status, 404);
+});
+
+test('public announcements endpoint does not request drafts and disables caching', async () => {
+  const route = load('app/api/announcements/route.ts', {
+    '@/lib/announcements': { getAnnouncements: async (...args) => { assert.deepEqual(args, []); return []; } },
+  });
+  const response = await route.GET();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+});
+
+test('banner renders plain text safely and only offers dismissal when allowed', () => {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const { AnnouncementBanner } = load('components/announcement-banner.tsx', {
+    react: React, 'react/jsx-runtime': require('react/jsx-runtime'), '@/lib/announcement-types': announcementTypes,
+  });
+  const initial = [
+    { ...announcementInput, id: '1', revision: 1, published: true, title: 'Required update', dismissible: false, message: '<script>alert(1)</script>' },
+    { ...announcementInput, id: '2', revision: 1, published: true, title: 'Optional update' },
+    { ...announcementInput, id: '3', revision: 1, title: 'Private draft' },
+  ];
+  const html = renderToStaticMarkup(React.createElement(AnnouncementBanner, { initial }));
+  assert.ok(html.includes('Required update'));
+  assert.ok(html.includes('Dismiss announcement: Optional update'));
+  assert.ok(!html.includes('Dismiss announcement: Required update'));
+  assert.ok(!html.includes('Private draft'));
+  assert.ok(!html.includes('<script>'));
+  assert.ok(html.includes('&lt;script&gt;'));
+});
+
+test('dismissal hides only the matching version of a dismissible published announcement', () => {
+  const item = { ...announcementInput, id: '1', revision: 1, published: true };
+  const dismissed = ['1:1'];
+  assert.equal(announcementTypes.isAnnouncementVisible(item, dismissed), false);
+  assert.equal(announcementTypes.isAnnouncementVisible({ ...item, revision: 2 }, dismissed), true);
+  assert.equal(announcementTypes.isAnnouncementVisible({ ...item, dismissible: false }, dismissed), true);
+  assert.equal(announcementTypes.isAnnouncementVisible({ ...item, published: false }, []), false);
+  assert.equal(announcementTypes.isAnnouncementVisible({ ...item, id: '2' }, dismissed), true);
+});
+
+test('announcement mutations record actor, announcement snapshot and publication settings', async () => {
+  for (const [method, action] of [['POST', 'Announcement created'], ['PUT', 'Announcement updated'], ['DELETE', 'Announcement deleted']]) {
+    for (const published of [true, false]) {
+      const saved = { ...announcementInput, id: '7', revision: 2, published };
+      const { route, audits } = announcementAdmin({ rows: [saved] });
+      const response = await route[method](new Request('https://example.com/api/admin/announcements', { method, body: JSON.stringify(saved) }));
+      assert.ok(response.ok);
+      assert.equal(audits.length, 1);
+      assert.equal(audits[0].action, action);
+      assert.equal(audits[0].category, 'announcements');
+      assert.equal(audits[0].source, 'admin-announcements');
+      assert.equal(audits[0].actorUserId, 'admin-1');
+      assert.deepEqual(audits[0].metadata.announcement, saved);
+    }
+  }
+  const { route, audits } = announcementAdmin({ rows: [] });
+  await route.DELETE(new Request('https://example.com/api/admin/announcements', { method: 'DELETE', body: '{"id":"7"}' }));
+  assert.equal(audits.length, 0);
+});
+
+test('announcement audit events stay internal even for critical severity and repeated deletions', async () => {
+  let deliveries = 0;
+  let webhookReads = 0;
+  const recorded = [];
+  const audit = load('lib/audit.ts', {
+    '@clerk/nextjs/server': {},
+    '@/lib/access': {},
+    '@/lib/db': {
+      hasDatabaseUrl: () => true,
+      getSql: () => async (parts, ...values) => {
+        const query = parts.join('?');
+        if (/INSERT INTO audit_logs/.test(query)) recorded.push(values);
+        if (/SELECT setting_value/.test(query)) { webhookReads++; return [{ setting_value: 'https://example.invalid/webhook' }]; }
+        return [];
+      },
+    },
+  }, {
+    setInterval: () => 0,
+    fetch: async () => { deliveries++; return { ok: true }; },
+  });
+  for (let index = 0; index < 5; index++) {
+    await audit.logAuditEvent({ action: 'Announcement deleted', category: 'announcements', severity: 'critical' });
+  }
+  await audit.logAuditEvent({ action: 'Updated', source: 'admin-announcements', severity: 'critical' });
+  assert.equal(recorded.length, 6);
+  assert.equal(deliveries, 0);
+  assert.equal(webhookReads, 0);
+  // Other activity retains its existing webhook delivery behavior.
+  await audit.logAuditEvent({ action: 'Link deleted', category: 'links' });
+  assert.equal(recorded.length, 7);
+  assert.equal(deliveries, 1);
+  assert.equal(webhookReads, 1);
 });

@@ -250,7 +250,6 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
     const email = input.actorEmail ?? actor.email;
     const discordUsername = input.actorDiscordUsername ?? actor.discordUsername;
     const discordUserId = input.actorDiscordUserId ?? actor.discordUserId;
-    const webhookUrl = await getDiscordWebhookUrl();
     const severity = detectSuspiciousActivity(input);
     const details = input.details ?? "No additional details were provided.";
     const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
@@ -293,6 +292,11 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
       );
     `;
 
+    // Announcement activity is internal-only, regardless of severity or action.
+    // Return before even reading webhook settings so no delivery can occur.
+    if (input.category === "announcements" || input.source === "admin-announcements") return;
+
+    const webhookUrl = await getDiscordWebhookUrl();
     if (!webhookUrl) return;
 
     const notifyDiscord = shouldNotifyDiscord(input, details);
