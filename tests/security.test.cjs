@@ -497,3 +497,29 @@ test('announcement audit events stay internal even for critical severity and rep
   assert.equal(deliveries, 1);
   assert.equal(webhookReads, 1);
 });
+
+test('site settings rejects signed-out and non-admin users before rendering tools', async () => {
+  for (const userId of [null, 'report-staff', 'regular-user']) {
+    const { default: SettingsLayout } = load('app/(dashboard)/site/settings/layout.tsx', {
+      '@clerk/nextjs/server': { auth: async () => ({ userId }) },
+      '@/lib/access': { isAdminUser: async () => false },
+      'next/navigation': { redirect: (url) => { throw new Error(`redirect:${url}`); } },
+      '@/components/settings-nav': { SettingsNav: () => null },
+      'react/jsx-runtime': { jsx: () => { throw new Error('Unauthorized render'); }, jsxs: () => { throw new Error('Unauthorized render'); } },
+    });
+    await assert.rejects(SettingsLayout({ children: 'private tools' }), /redirect:\/access-denied/);
+  }
+});
+
+test('site settings renders its tools for administrators', async () => {
+  const render = (type, props) => ({ type, props });
+  const { default: SettingsLayout } = load('app/(dashboard)/site/settings/layout.tsx', {
+    '@clerk/nextjs/server': { auth: async () => ({ userId: 'admin' }) },
+    '@/lib/access': { isAdminUser: async () => true },
+    'next/navigation': { redirect: () => { throw new Error('Unexpected redirect'); } },
+    '@/components/settings-nav': { SettingsNav: () => null },
+    'react/jsx-runtime': { jsx: render, jsxs: render },
+  });
+  const result = await SettingsLayout({ children: 'private tools' });
+  assert.equal(result.props.children[1], 'private tools');
+});

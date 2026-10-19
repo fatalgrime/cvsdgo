@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/site/help", "/site/privacy", "/site/terms"],
-        disallow: ["/api/", "/site/link-manager", "/site/status", "/site/support", "/site/users", "/sign-in"],
+        disallow: ["/site/settings", "/api/", "/site/link-manager", "/site/status", "/site/support", "/site/users", "/sign-in"],
       },
     ],
     sitemap: "https://go.cvsd.live/sitemap.xml",

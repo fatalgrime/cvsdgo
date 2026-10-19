@@ -113,44 +113,27 @@ export async function GET(request: Request): Promise<Response> {
     },
   ];
 
-  if (profile.canManageReports || profile.canManageLinks || profile.admin) {
-    availablePages.push(
-      {
-        id: "page-submissions",
-        type: "page",
-        title: "Submissions & Reports",
-        description: "Review user submissions and support requests",
-        href: "/site/support",
-        category: "Staff",
-      },
-      {
-        id: "page-link-manager",
-        type: "page",
-        title: "Link Manager",
-        description: "Manage, create, and organize district short links",
-        href: "/site/link-manager",
-        category: "Staff",
-      },
-      {
-        id: "page-status",
-        type: "page",
-        title: "System Status",
-        description: "Monitor database, services, and system metrics",
-        href: "/site/status",
-        category: "Staff",
-      }
-    );
+  if (profile.canManageReports) {
+    availablePages.push({
+      id: "page-submissions", type: "page", title: "Submissions & Reports",
+      description: "Review user submissions and support requests",
+      href: profile.admin ? "/site/settings/submissions" : "/site/support", category: "Staff",
+    });
   }
 
   if (profile.admin) {
-    availablePages.push({
-      id: "page-users",
-      type: "page",
-      title: "User Management",
-      description: "Manage staff roles, permissions, and bans",
-      href: "/site/users",
-      category: "Admin",
-    });
+    for (const [slug, title, description] of [
+      ["", "Site Settings", "Centralized administrative tools and settings"],
+      ["links", "Link Manager", "Manage, create, and organize district short links"],
+      ["policies", "Published Policies & Editor", "Manage published terms and privacy policies"],
+      ["discord", "Discord Audit Logging", "Manage the Discord integration and view delivery status"],
+      ["activity", "Activity Log", "Monitor system health and administrative events"],
+      ["users", "User Management", "Manage staff roles, permissions, and bans"],
+      ["announcements", "Announcements", "Create and manage announcements"],
+    ]) {
+      availablePages.push({ id: `page-settings-${slug || "home"}`, type: "page", title, description,
+        href: `/site/settings${slug ? `/${slug}` : ""}`, category: "Admin" });
+    }
   }
 
   const availableActions: SearchActionItem[] = [

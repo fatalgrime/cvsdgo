@@ -13,9 +13,11 @@ type SidebarItem = {
 
 type SidebarNavProps = {
   items: SidebarItem[];
+  onNavigate?: () => void;
+  className?: string;
 };
 
-export function SidebarNav({ items }: SidebarNavProps) {
+export function SidebarNav({ items, onNavigate, className }: SidebarNavProps) {
   const { authenticated } = useAccessProfile();
   const pathname = usePathname();
   const [badgeCount, setBadgeCount] = useState<number>(0);
@@ -58,16 +60,18 @@ export function SidebarNav({ items }: SidebarNavProps) {
   const visibleItems = items.filter((item) => !item.requiresAuth || authenticated);
 
   return (
-    <ul className="mt-5 flex-1 space-y-2 text-sm text-oxford-700 dark:text-slate-100">
+    <ul className={className ?? "mt-5 flex-1 space-y-2 text-sm text-oxford-700 dark:text-slate-100"}>
       {visibleItems.map((item) => {
-        const isSubmissions = item.href === "/site/support";
-        const isActive = pathname === item.href;
+        const isSubmissions = ["/site/support", "/site/settings/submissions", "/site/settings"].includes(item.href);
+        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
         return (
           <li key={item.href}>
             <Link
               href={item.href}
-              className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition ${
+              onClick={onNavigate}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex min-h-11 items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxford-500 ${
                 isActive
                   ? "bg-oxford-700 text-white dark:bg-oxford-500"
                   : "text-slate-600 hover:bg-slate-100 hover:text-oxford-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"

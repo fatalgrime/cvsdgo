@@ -36,7 +36,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={handleToggle}
-      className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-oxford-700 shadow-sm transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300"
+      className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 sm:px-4 text-sm font-semibold text-oxford-700 shadow-sm transition hover:border-oxford-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-oxford-300"
       aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
     >
       <span className="inline-flex h-5 w-5 items-center justify-center">
@@ -51,7 +51,7 @@ export function ThemeToggle() {
           </svg>
         )}
       </span>
-      <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+      <span className="hidden sm:inline">{theme === "dark" ? "Light mode" : "Dark mode"}</span>
     </button>
   );
 }
