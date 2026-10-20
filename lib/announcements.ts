@@ -11,6 +11,7 @@ export async function ensureAnnouncementSchema(): Promise<void> {
           title TEXT NOT NULL,
           message TEXT NOT NULL,
           tone TEXT NOT NULL DEFAULT 'info' CHECK (tone IN ('info', 'success', 'warning')),
+          audience TEXT NOT NULL DEFAULT 'everyone' CHECK (audience IN ('everyone', 'staff')),
           dismissible BOOLEAN NOT NULL DEFAULT TRUE,
           published BOOLEAN NOT NULL DEFAULT FALSE,
           revision INTEGER NOT NULL DEFAULT 1,
@@ -18,17 +19,19 @@ export async function ensureAnnouncementSchema(): Promise<void> {
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
       `;
+      await sql`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'everyone' CHECK (audience IN ('everyone', 'staff'));`;
     })().catch((error) => { schemaPromise = null; throw error; });
   }
   await schemaPromise;
 }
-export async function getAnnouncements(includeDrafts = false): Promise<Announcement[]> {
+export async function getAnnouncements(includeDrafts = false, includeStaff = false): Promise<Announcement[]> {
   if (!hasDatabaseUrl()) return [];
   await ensureAnnouncementSchema();
   const sql = getSql();
   return await sql`
-    SELECT id::text, title, message, tone, dismissible, published, revision
-    FROM announcements WHERE published = TRUE OR ${includeDrafts}
+    SELECT id::text, title, message, tone, audience, dismissible, published, revision
+    FROM announcements WHERE (published = TRUE OR ${includeDrafts})
+      AND (audience = 'everyone' OR ${includeStaff})
     ORDER BY created_at DESC, id DESC;
   ` as Announcement[];
 }

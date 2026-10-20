@@ -1,4 +1,5 @@
 export type AnnouncementInput = {
+  audience: "everyone" | "staff";
   title: string;
   message: string;
   tone: "info" | "success" | "warning";
@@ -13,10 +14,11 @@ export function parseAnnouncement(value: unknown): AnnouncementInput | null {
   if (typeof body.title !== "string" || typeof body.message !== "string" ||
       typeof body.dismissible !== "boolean" || typeof body.published !== "boolean" ||
       (typeof body.tone !== "string" || !["info", "success", "warning"].includes(body.tone))) return null;
+  if (body.audience !== "everyone" && body.audience !== "staff") return null;
   const title = body.title.trim();
   const message = body.message.trim();
   if (!title || title.length > 100 || !message || message.length > 1000) return null;
-  return { title, message, tone: body.tone as AnnouncementInput["tone"], dismissible: body.dismissible, published: body.published };
+  return { audience: body.audience, title, message, tone: body.tone as AnnouncementInput["tone"], dismissible: body.dismissible, published: body.published };
 }
 
 export function announcementKey(item: Announcement): string {

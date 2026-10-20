@@ -350,7 +350,7 @@ test('failed or missing report updates do not emit success audits', async () => 
 });
 
 const announcementTypes = load('lib/announcement-types.ts');
-const announcementInput = { title: 'District update', message: 'School opens at 9.', tone: 'info', dismissible: true, published: false };
+const announcementInput = { audience: 'everyone', title: 'District update', message: 'School opens at 9.', tone: 'info', dismissible: true, published: false };
 
 test('announcement validation enforces lengths, settings and supported tones', () => {
   assert.deepEqual(announcementTypes.parseAnnouncement({ ...announcementInput, title: '  District update  ' }), announcementInput);
@@ -358,6 +358,8 @@ test('announcement validation enforces lengths, settings and supported tones', (
     { ...announcementInput, title: ' ' }, { ...announcementInput, title: 'a'.repeat(101) },
     { ...announcementInput, message: 'a'.repeat(1001) }, { ...announcementInput, message: '' },
     { ...announcementInput, published: 'true' }, { ...announcementInput, dismissible: 1 },
+    { ...announcementInput, audience: undefined }, { ...announcementInput, audience: null },
+    { ...announcementInput, audience: 'students' }, { ...announcementInput, audience: ['staff'] },
     { ...announcementInput, tone: ['info'] }, { ...announcementInput, tone: 'invalid' },
   ]) assert.equal(announcementTypes.parseAnnouncement(value), null);
   assert.notEqual(announcementTypes.announcementKey({ id: '1', revision: 1 }), announcementTypes.announcementKey({ id: '1', revision: 2 }));
@@ -405,13 +407,61 @@ test('announcement create, edit, delete validate input and return useful results
   assert.equal((await route.DELETE(new Request('https://example.com/api/admin/announcements', { method: 'DELETE', body: '{"id":"1"}' }))).status, 404);
 });
 
-test('public announcements endpoint does not request drafts and disables caching', async () => {
-  const route = load('app/api/announcements/route.ts', {
-    '@/lib/announcements': { getAnnouncements: async (...args) => { assert.deepEqual(args, []); return []; } },
+test('announcement feed uses authenticated roles and never requests drafts', async () => {
+  for (const [userId, access, includeStaff] of [
+    [null, { admin: false, reportStaff: false }, false],
+    ['regular', { admin: false, reportStaff: false }, false],
+    ['staff', { admin: false, reportStaff: true }, true],
+    ['admin', { admin: true, reportStaff: false }, true],
+    ['allowlisted', { admin: true, reportStaff: true, allowlisted: true }, true],
+  ]) {
+    const route = load('app/api/announcements/route.ts', {
+      '@clerk/nextjs/server': { auth: async () => ({ userId }) },
+      '@/lib/access': { getAccessProfile: async id => { assert.equal(id, userId); return access; } },
+      '@/lib/announcements': { getAnnouncements: async (...args) => { assert.deepEqual(args, [false, includeStaff]); return []; } },
+    });
+    const response = await route.GET();
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  }
+});
+
+test('announcement queries filter audience and publication independently with safe defaults', async () => {
+  const queries = [];
+  const { getAnnouncements } = load('lib/announcements.ts', {
+    '@/lib/db': { hasDatabaseUrl: () => true, getSql: () => async (parts, ...values) => {
+      queries.push({ sql: parts.join('?'), values });
+      return [];
+    } },
   });
-  const response = await route.GET();
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  for (const args of [[], [false, true], [true, true], [true, false]]) {
+    await getAnnouncements(...args);
+    const query = queries.at(-1);
+    assert.match(query.sql, /WHERE \(published = TRUE OR \?\)\s+AND \(audience = 'everyone' OR \?\)/);
+    assert.deepEqual(query.values, [args[0] ?? false, args[1] ?? false]);
+  }
+  assert.ok(queries.some(query => query.sql.includes('ADD COLUMN IF NOT EXISTS audience')));
+});
+
+test('staff audience survives creation and editing', async () => {
+  for (const method of ['POST', 'PUT']) {
+    const queries = [];
+    const input = { ...announcementInput, audience: 'staff', id: '1' };
+    const route = load('app/api/admin/announcements/route.ts', {
+      '@clerk/nextjs/server': { auth: async () => ({ userId: 'allowlisted' }) },
+      '@/lib/access': { requireAdminUser: async () => null },
+      '@/lib/audit': { getRequestContext: () => ({}), logAuditEvent: async () => {} },
+      '@/lib/db': { hasDatabaseUrl: () => true, getSql: () => async (parts, ...values) => {
+        queries.push({ sql: parts.join('?'), values }); return [input];
+      } },
+      '@/lib/announcements': { ensureAnnouncementSchema: async () => {} },
+      '@/lib/announcement-types': announcementTypes,
+    });
+    const response = await route[method](new Request('https://example.com/api/admin/announcements', { method, body: JSON.stringify(input) }));
+    assert.equal(response.status, method === 'POST' ? 201 : 200);
+    assert.ok(queries[0].values.includes('staff'));
+    assert.match(queries[0].sql, /audience/);
+  }
 });
 
 test('banner renders plain text safely and only offers dismissal when allowed', () => {

@@ -15,7 +15,7 @@ import { AccessProvider } from "@/components/access-provider";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
   const access = await getAccessProfile(userId);
-  const announcements = await getAnnouncements().catch((error) => {
+  const announcements = await getAnnouncements(false, access.admin || access.reportStaff).catch((error) => {
     console.error("Unable to load announcement banner", error);
     return [];
   });
@@ -63,7 +63,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
       {/* Mobile Header Nav Drawer Bar */}
       <MobileNav items={sidebarItems} />
-      <AnnouncementBanner initial={announcements} />
+      <AnnouncementBanner key={`${userId ?? "anonymous"}:${access.admin || access.reportStaff}`} initial={announcements} />
 
       <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[250px_1fr] lg:px-8">
         <aside className="hidden panel border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-950/80 lg:block lg:sticky lg:top-24 lg:h-[calc(100vh-7.5rem)] lg:overflow-auto">

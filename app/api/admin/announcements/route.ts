@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(): Promise<Response> {
   const denied = await requireAdminUser();
   if (denied) return denied;
-  return Response.json({ announcements: await getAnnouncements(true), storageAvailable: hasDatabaseUrl() }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ announcements: await getAnnouncements(true, true), storageAvailable: hasDatabaseUrl() }, { headers: { "Cache-Control": "no-store" } });
 }
 async function mutate(request: Request, action: "create" | "update" | "delete"): Promise<Response> {
   const denied = await requireAdminUser();
@@ -28,24 +28,24 @@ async function mutate(request: Request, action: "create" | "update" | "delete"):
   const { userId } = await auth();
   let rows;
   if (action === "delete") {
-    rows = await sql`DELETE FROM announcements WHERE id = ${id} RETURNING id::text, title, message, tone, dismissible, published, revision;`;
+    rows = await sql`DELETE FROM announcements WHERE id = ${id} RETURNING id::text, title, message, tone, audience, dismissible, published, revision;`;
   } else if (action === "update" && input) {
     rows = await sql`
       UPDATE announcements SET title = ${input.title}, message = ${input.message}, tone = ${input.tone},
-        dismissible = ${input.dismissible}, published = ${input.published}, revision = revision + 1, updated_at = NOW()
-      WHERE id = ${id} RETURNING id::text, title, message, tone, dismissible, published, revision;
+        audience = ${input.audience}, dismissible = ${input.dismissible}, published = ${input.published}, revision = revision + 1, updated_at = NOW()
+      WHERE id = ${id} RETURNING id::text, title, message, tone, audience, dismissible, published, revision;
     `;
   } else if (input) {
     rows = await sql`
-      INSERT INTO announcements (title, message, tone, dismissible, published)
-      VALUES (${input.title}, ${input.message}, ${input.tone}, ${input.dismissible}, ${input.published}) RETURNING id::text, title, message, tone, dismissible, published, revision;
+      INSERT INTO announcements (title, message, tone, audience, dismissible, published)
+      VALUES (${input.title}, ${input.message}, ${input.tone}, ${input.audience}, ${input.dismissible}, ${input.published}) RETURNING id::text, title, message, tone, audience, dismissible, published, revision;
     `;
   }
   if (!(rows as unknown[])?.length) return new Response("Announcement not found", { status: 404 });
   const saved = (rows as Announcement[])[0];
   await logAuditEvent({
     action: action === "create" ? "Announcement created" : action === "delete" ? "Announcement deleted" : "Announcement updated",
-    details: `${saved.title} (${saved.published ? "published" : "draft"}; ${saved.dismissible ? "dismissible" : "always visible"})`,
+    details: `${saved.title} (${saved.published ? "published" : "draft"}; ${saved.audience}; ${saved.dismissible ? "dismissible" : "always visible"})`,
     actorUserId: userId,
     category: "announcements",
     source: "admin-announcements",
