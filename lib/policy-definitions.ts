@@ -16,6 +16,7 @@ export type StoredPolicyDocument = {
   route: string;
   storageKey: string;
   markdown: string;
+  effectiveDate: string;
   updatedAt: string | null;
   isDefault: boolean;
 };
@@ -169,4 +170,13 @@ export function isPolicyDocumentKey(value: string): value is PolicyDocumentKey {
 export function hasMeaningfulPolicyContent(markdown: string): boolean {
   const stripped = markdown.replace(/[\s#>*_\-`[\]{}()|!~]/g, "").trim();
   return stripped.length > 0;
+}
+
+// Preserve dates from policy copies saved before the separate date field existed.
+export function splitPolicyEffectiveDate(markdown: string): { markdown: string; effectiveDate: string } {
+  const match = markdown.match(/^\s*\*{0,2}Effective date:\s*([^\r\n]+?)\*{0,2}[ \t]*(?:\r?\n|$)/i);
+  return {
+    markdown: match ? markdown.slice(match[0].length).trimStart() : markdown,
+    effectiveDate: match ? match[1].trim() : "March 10, 2026",
+  };
 }

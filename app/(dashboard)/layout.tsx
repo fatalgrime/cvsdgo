@@ -33,6 +33,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <AccessProvider profile={{ authenticated: Boolean(userId), ...access }}>
     <main className="min-h-screen">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[300] focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-oxford-900">Skip to content</a>
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/80">
         <div className="mx-auto flex min-h-20 flex-wrap w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex shrink-0 items-center">
@@ -74,7 +75,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </aside>
 
-        <section className="pb-10 min-w-0">{children}</section>
+        <section id="main-content" tabIndex={-1} aria-label="Page content" className="pb-10 min-w-0">{children}</section>
       </div>
     </main>
     </AccessProvider>

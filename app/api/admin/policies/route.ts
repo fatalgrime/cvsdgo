@@ -10,6 +10,7 @@ import {
 type PolicyRequestBody = {
   documentKey?: unknown;
   markdown?: unknown;
+  effectiveDate?: unknown;
 };
 
 export async function GET(): Promise<Response> {
@@ -39,6 +40,10 @@ export async function POST(request: Request): Promise<Response> {
   const body = (await request.json().catch(() => null)) as PolicyRequestBody | null;
   const documentKey = String(body?.documentKey ?? "").trim();
   const markdown = String(body?.markdown ?? "").replace(/\r\n/g, "\n");
+  const effectiveDate = typeof body?.effectiveDate === "string" ? body.effectiveDate.trim() : "";
+  if (!effectiveDate || effectiveDate.length > 200) {
+    return new Response("Effective date must contain between 1 and 200 characters.", { status: 400 });
+  }
 
   if (!isPolicyDocumentKey(documentKey)) {
     return new Response("Invalid policy document", { status: 400 });
@@ -52,6 +57,7 @@ export async function POST(request: Request): Promise<Response> {
     const savedDocument = await savePolicyDocument({
       key: documentKey,
       markdown,
+      effectiveDate,
       actorUserId: userId,
       request,
     });

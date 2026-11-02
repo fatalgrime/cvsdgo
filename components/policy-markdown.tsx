@@ -51,6 +51,7 @@ const components: Components = {
   a: ({ href, children }) => (
     <a href={href} className="font-semibold text-oxford-700 underline decoration-oxford-300 underline-offset-4 transition hover:text-oxford-900 dark:text-oxford-200 dark:decoration-oxford-500" target={href?.startsWith("http") ? "_blank" : undefined} rel={href?.startsWith("http") ? "noreferrer noopener" : undefined}>
       {children}
+      {href?.startsWith("http") ? <span className="sr-only"> (opens in a new tab)</span> : null}
     </a>
   ),
   ul: ({ children }) => <ul className="ml-6 list-disc space-y-2 text-slate-700 dark:text-slate-200">{children}</ul>,
@@ -99,14 +100,14 @@ const components: Components = {
   }) as Components["code"],
   pre: ({ children }) => <pre className="my-4 overflow-x-auto rounded-xl bg-slate-950 px-4 py-4 font-mono text-sm leading-6 text-slate-100 shadow-inner">{children}</pre>,
   table: ({ children }) => (
-    <div className="my-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+    <div role="region" aria-label="Policy table" tabIndex={0} className="my-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
       <table className="w-full border-collapse text-left text-sm">{children}</table>
     </div>
   ),
   thead: ({ children }) => <thead className="bg-slate-50 text-slate-700 dark:bg-slate-900 dark:text-slate-200">{children}</thead>,
   tbody: ({ children }) => <tbody className="divide-y divide-slate-200 dark:divide-slate-800">{children}</tbody>,
   tr: ({ children }) => <tr className="odd:bg-white even:bg-slate-50 dark:odd:bg-slate-950 dark:even:bg-slate-900">{children}</tr>,
-  th: ({ children }) => <th className="px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em]">{children}</th>,
+  th: ({ children }) => <th scope="col" className="px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em]">{children}</th>,
   td: ({ children }) => <td className="px-4 py-3 align-top leading-6">{children}</td>,
   hr: () => <hr className="my-8 border-slate-200 dark:border-slate-800" />,
   strong: ({ children }) => <strong className="font-semibold text-oxford-700 dark:text-slate-100">{children}</strong>,

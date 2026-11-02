@@ -3,6 +3,7 @@ import { getSql, hasDatabaseUrl } from "@/lib/db";
 import {
   hasMeaningfulPolicyContent,
   POLICY_DOCUMENTS,
+  splitPolicyEffectiveDate,
   type PolicyDocumentKey,
   type PolicyDocumentDefinition,
   type StoredPolicyDocument,
@@ -17,6 +18,7 @@ export function getPolicyDocumentDefinition(key: PolicyDocumentKey): PolicyDocum
 
 export async function getPolicyDocument(key: PolicyDocumentKey): Promise<StoredPolicyDocument> {
   const definition = POLICY_DOCUMENTS[key];
+  const fallback = splitPolicyEffectiveDate(definition.defaultMarkdown);
 
   if (!hasDatabaseUrl()) {
     return {
@@ -25,7 +27,7 @@ export async function getPolicyDocument(key: PolicyDocumentKey): Promise<StoredP
       title: definition.title,
       route: definition.route,
       storageKey: definition.storageKey,
-      markdown: definition.defaultMarkdown,
+      ...fallback,
       updatedAt: null,
       isDefault: true,
     };
@@ -34,13 +36,15 @@ export async function getPolicyDocument(key: PolicyDocumentKey): Promise<StoredP
   await ensureAuditSchema();
   const sql = getSql();
   const rows = (await sql`
-    SELECT setting_value, updated_at
+    SELECT setting_key, setting_value, updated_at
     FROM site_settings
-    WHERE setting_key = ${definition.storageKey}
-    LIMIT 1;
-  `) as { setting_value: string; updated_at: string }[];
+    WHERE setting_key IN (${definition.storageKey}, ${`${definition.storageKey}_effective_date`});
+  `) as { setting_key: string; setting_value: string; updated_at: string }[];
 
-  const storedMarkdown = rows[0]?.setting_value?.trim();
+  const contentRow = rows.find((row) => row.setting_key === definition.storageKey);
+  const dateRow = rows.find((row) => row.setting_key === `${definition.storageKey}_effective_date`);
+  const storedMarkdown = contentRow?.setting_value?.trim();
+  const content = splitPolicyEffectiveDate(storedMarkdown || definition.defaultMarkdown);
 
   return {
     key,
@@ -48,8 +52,9 @@ export async function getPolicyDocument(key: PolicyDocumentKey): Promise<StoredP
     title: definition.title,
     route: definition.route,
     storageKey: definition.storageKey,
-    markdown: storedMarkdown && storedMarkdown.length > 0 ? storedMarkdown : definition.defaultMarkdown,
-    updatedAt: rows[0]?.updated_at ?? null,
+    markdown: content.markdown,
+    effectiveDate: dateRow?.setting_value?.trim() || content.effectiveDate,
+    updatedAt: contentRow?.updated_at ?? null,
     isDefault: !storedMarkdown || storedMarkdown.length === 0,
   };
 }
@@ -65,6 +70,7 @@ export async function getAllPolicyDocuments(): Promise<Record<PolicyDocumentKey,
 export async function savePolicyDocument(input: {
   key: PolicyDocumentKey;
   markdown: string;
+  effectiveDate: string;
   actorUserId: string;
   request?: Request | null;
 }): Promise<StoredPolicyDocument> {
@@ -74,6 +80,10 @@ export async function savePolicyDocument(input: {
 
   if (!hasMeaningfulPolicyContent(input.markdown)) {
     throw new Error("Policy content cannot be empty.");
+  }
+  const effectiveDate = input.effectiveDate.trim();
+  if (!effectiveDate || effectiveDate.length > 200) {
+    throw new Error("Effective date must contain between 1 and 200 characters.");
   }
 
   const definition = POLICY_DOCUMENTS[input.key];
@@ -89,7 +99,8 @@ export async function savePolicyDocument(input: {
 
   await sql`
     INSERT INTO site_settings (setting_key, setting_value, updated_at)
-    VALUES (${definition.storageKey}, ${input.markdown.trim()}, NOW())
+    VALUES (${definition.storageKey}, ${input.markdown.trim()}, NOW()),
+      (${`${definition.storageKey}_effective_date`}, ${effectiveDate}, NOW())
     ON CONFLICT (setting_key) DO UPDATE SET
       setting_value = EXCLUDED.setting_value,
       updated_at = NOW();
@@ -105,6 +116,7 @@ export async function savePolicyDocument(input: {
       storageKey: definition.storageKey,
       previousLength: previousValue?.length ?? 0,
       newLength: input.markdown.trim().length,
+      effectiveDate,
     },
     severity: "info",
     category: "policies",

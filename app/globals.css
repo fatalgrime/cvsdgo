@@ -243,3 +243,20 @@ img[alt*="QR Code"] {
 .dark .announcement-warning { --announcement-bg: #382b16; --announcement-border: #725328; --announcement-text: #fef3c7; }
 .announcement-dismiss:hover { background: rgb(0 0 0 / 0.06); }
 .dark .announcement-dismiss:hover { background: rgb(255 255 255 / 0.1); }
+
+/* Keep keyboard focus visible, including controls that suppress browser outlines. */
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid #1d4ed8 !important;
+  outline-offset: 3px;
+}
+.dark :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline-color: #93c5fd !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

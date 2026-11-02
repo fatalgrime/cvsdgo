@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { useToast } from "@/components/toast-provider";
 import { PolicyMarkdown } from "@/components/policy-markdown";
 import {
@@ -27,6 +27,7 @@ type WorkspaceView = "split" | "source" | "preview";
 type SplitRatio = "source-wide" | "balanced" | "preview-wide";
 
 function handleDialogKeys(event: React.KeyboardEvent<HTMLDivElement>, onClose: () => void) {
+  event.stopPropagation();
   if (event.key === "Escape") {
     event.preventDefault();
     onClose();
@@ -38,7 +39,11 @@ function handleDialogKeys(event: React.KeyboardEvent<HTMLDivElement>, onClose: (
       "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])"
     )
   );
-  if (focusable.length === 0) return;
+  if (focusable.length === 0) {
+    event.preventDefault();
+    event.currentTarget.focus();
+    return;
+  }
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
   if (event.shiftKey && document.activeElement === first) {
@@ -107,12 +112,16 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
   const [selectedDocument, setSelectedDocument] = useState<StoredPolicyDocument | null>(null);
   const [markdown, setMarkdown] = useState("");
   const [originalMarkdown, setOriginalMarkdown] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState("");
+  const [originalEffectiveDate, setOriginalEffectiveDate] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [loadMessage, setLoadMessage] = useState("Preparing editor...");
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("split");
   const [splitRatio, setSplitRatio] = useState<SplitRatio>("balanced");
+  const hasOpenedRef = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const { toast } = useToast();
 
@@ -120,8 +129,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
     setPortalReady(true);
   }, []);
 
-  const isDirty = useMemo(() => normalizeMarkdown(markdown) !== normalizeMarkdown(originalMarkdown), [markdown, originalMarkdown]);
-  const canSave = storageAvailable && !isSaving && getMeaningfulMarkdown(markdown);
+  const isDirty = useMemo(() => normalizeMarkdown(markdown) !== normalizeMarkdown(originalMarkdown) || effectiveDate.trim() !== originalEffectiveDate.trim(), [markdown, originalMarkdown, effectiveDate, originalEffectiveDate]);
+  const canSave = storageAvailable && !isSaving && getMeaningfulMarkdown(markdown) && Boolean(effectiveDate.trim()) && effectiveDate.trim().length <= 200;
   const workspaceGridClass = workspaceView !== "split"
     ? "grid-cols-1"
     : splitRatio === "source-wide"
@@ -168,6 +177,37 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
     };
   }, [isSelectionOpen]);
 
+  useEffect(() => {
+    if (!portalReady) return;
+    if (!isSelectionOpen && selection.stage !== "editor" && !isLoading) {
+      if (hasOpenedRef.current) triggerRef.current?.focus();
+      return;
+    }
+    hasOpenedRef.current = true;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const inertElements: { element: HTMLElement; wasInert: boolean }[] = [];
+    const frame = requestAnimationFrame(() => {
+      const stage = confirmState.open ? "confirm" : isSelectionOpen ? "selection" : isLoading ? "loading" : "editor";
+      const panel = document.querySelector<HTMLElement>(`[data-policy-dialog="${stage}"]`);
+      if (!panel) return;
+      for (const child of Array.from(document.body.children)) {
+        if (child instanceof HTMLElement && !child.contains(panel)) {
+          inertElements.push({ element: child, wasInert: child.inert });
+          child.inert = true;
+        }
+      }
+      (panel.querySelector<HTMLElement>('button:not([disabled]), input, textarea') ?? panel).focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      inertElements.forEach(({ element, wasInert }) => { element.inert = wasInert; });
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [portalReady, isSelectionOpen, selection.stage, isLoading, confirmState.open]);
+
   async function openPolicyEditor(key: PolicyDocumentKey) {
     setSelection({ stage: "loading", documentKey: key });
     setIsSelectionOpen(false);
@@ -200,6 +240,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
       setSelectedDocument(document);
       setMarkdown(document.markdown);
       setOriginalMarkdown(document.markdown);
+      setEffectiveDate(document.effectiveDate);
+      setOriginalEffectiveDate(document.effectiveDate);
       setSelection({ stage: "editor", documentKey: key });
       setIsLoading(false);
     } catch (error) {
@@ -231,6 +273,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
     setSelectedDocument(null);
     setMarkdown("");
     setOriginalMarkdown("");
+    setEffectiveDate("");
+    setOriginalEffectiveDate("");
     setIsSaving(false);
     setFetchError(null);
     setLoadMessage("Preparing editor...");
@@ -304,12 +348,16 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
       return;
     }
 
+    if (!effectiveDate.trim() || effectiveDate.trim().length > 200) {
+      toast({ title: "Enter an effective date", description: "Use between 1 and 200 characters.", variant: "error" });
+      return;
+    }
     setIsSaving(true);
     try {
       const response = await fetch("/api/admin/policies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentKey: selectedDocument.key, markdown }),
+        body: JSON.stringify({ documentKey: selectedDocument.key, markdown, effectiveDate: effectiveDate.trim() }),
       });
 
       if (!response.ok) {
@@ -346,6 +394,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
     <>
       <button
         type="button"
+        ref={triggerRef}
         onClick={() => setIsSelectionOpen(true)}
         className="inline-flex items-center gap-2 rounded-xl border border-oxford-700 bg-oxford-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-oxford-600 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxford-500"
       >
@@ -355,7 +404,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
 
       {portalReady &&
         createPortal(
-          <AnimatePresence>
+          <MotionConfig reducedMotion="user"><AnimatePresence>
             {isSelectionOpen && (
               <motion.div
                 className="modal-backdrop z-[120] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
@@ -369,6 +418,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 10 }}
                   transition={{ duration: 0.2 }}
+                  data-policy-dialog="selection"
+                  tabIndex={-1}
                   role="dialog"
                   aria-modal="true"
                   aria-label="Choose a policy document to edit"
@@ -448,6 +499,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 10 }}
                   transition={{ duration: 0.2 }}
+                  data-policy-dialog="loading"
+                  tabIndex={-1}
                   role="status"
                   aria-live="polite"
                 >
@@ -478,6 +531,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, y: 18 }}
                   transition={{ duration: 0.24, layout: { duration: 0.24, ease: [0.22, 1, 0.36, 1] } }}
+                  data-policy-dialog="editor"
+                  tabIndex={-1}
                   role="dialog"
                   aria-modal="true"
                   aria-label={`Edit ${selectedDocument.label}`}
@@ -508,6 +563,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                         type="button"
                         onClick={() => setIsFullscreen((current) => !current)}
                         className="relative inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+                        aria-label={isFullscreen ? "Exit full screen" : "Open full screen"}
+                        aria-pressed={isFullscreen}
                         title={isFullscreen ? "Exit full screen" : "Open full screen"}
                       >
                         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -540,7 +597,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60 sm:px-6">
-                    <div className="flex flex-wrap items-center gap-2" aria-label="Markdown formatting tools">
+                    <div role="group" className="flex flex-wrap items-center gap-2" aria-label="Markdown formatting tools">
                       <span className="mr-1 hidden text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 xl:inline">Insert</span>
                       {Object.entries(MARKDOWN_SNIPPETS).map(([key, value]) => (
                       <button
@@ -572,10 +629,10 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                       </button>
                       ))}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2" aria-label="Workspace controls">
+                    <div role="group" className="flex flex-wrap items-center gap-2" aria-label="Workspace controls">
                       <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-950">
                         {([['source', 'Write'], ['split', 'Split'], ['preview', 'Preview']] as const).map(([value, label]) => (
-                          <button key={value} type="button" onClick={() => setWorkspaceView(value)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${workspaceView === value ? "bg-oxford-700 text-white" : "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}>{label}</button>
+                          <button key={value} type="button" onClick={() => setWorkspaceView(value)} aria-pressed={workspaceView === value} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${workspaceView === value ? "bg-oxford-700 text-white" : "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}>{label}</button>
                         ))}
                       </div>
                       {workspaceView === "split" && (
@@ -588,13 +645,19 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                     </div>
                   </div>
 
+                  <div className="border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+                    <label htmlFor="policy-effective-date" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Effective date</label>
+                    <input id="policy-effective-date" type="text" value={effectiveDate} onChange={(event) => setEffectiveDate(event.target.value)} maxLength={200} required aria-describedby="policy-effective-date-help" className="mt-1 w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" />
+                    <p id="policy-effective-date-help" className="mt-1 text-xs text-slate-600 dark:text-slate-300">Shown below Last updated on the public policy. For example: March 10, 2026.</p>
+                  </div>
                   <div className={`grid min-h-0 flex-1 ${workspaceGridClass}`}>
                     {workspaceView !== "preview" && <div className={`flex min-h-0 flex-col bg-slate-50/70 dark:bg-slate-950 ${workspaceView === "split" ? "border-b border-slate-200 dark:border-slate-800 lg:border-b-0 lg:border-r" : ""}`}>
                       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Markdown source</p>
+                        <label htmlFor="policy-markdown-source" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Markdown source</label>
                         <p className="text-xs text-slate-500 dark:text-slate-400">{markdown.trim().split(/\n+/).length} lines</p>
                       </div>
                       <textarea
+                        id="policy-markdown-source"
                         ref={textareaRef}
                         value={markdown}
                         onChange={(event) => setMarkdown(event.target.value)}
@@ -611,6 +674,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                       </div>
                       <div className="min-h-[22rem] flex-1 overflow-y-auto bg-white px-5 py-6 dark:bg-slate-950 sm:px-8">
                         <article className="mx-auto max-w-3xl space-y-5">
+                          <p className="text-sm text-slate-600 dark:text-slate-300">Last updated: {selectedDocument.updatedAt ? new Date(selectedDocument.updatedAt).toLocaleDateString() : "Default copy"}</p>
+                          <p className="text-sm font-bold"><strong>Effective date: {effectiveDate}</strong></p>
                           <PolicyMarkdown markdown={markdown} className="space-y-4" />
                         </article>
                       </div>
@@ -644,6 +709,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: 10 }}
                   transition={{ duration: 0.2 }}
+                  data-policy-dialog="confirm"
+                  tabIndex={-1}
                   role="alertdialog"
                   aria-modal="true"
                   aria-label="Discard unsaved policy changes"
@@ -652,7 +719,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Discard changes?</p>
                   <h3 className="mt-2 font-serif text-2xl text-oxford-700 dark:text-slate-100">You have unsaved edits</h3>
                   <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                    Closing now will discard your markdown changes for this policy document.
+                    Closing now will discard your content and effective date changes for this policy document.
                   </p>
                   <div className="mt-6 flex flex-wrap justify-end gap-3">
                     <button
@@ -674,7 +741,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                 </motion.div>
               </motion.div>
             )}
-          </AnimatePresence>,
+          </AnimatePresence></MotionConfig>,
           document.body
         )}
     </>
