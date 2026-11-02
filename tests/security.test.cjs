@@ -18,6 +18,22 @@ function load(relativePath, mocks = {}, globals = {}) {
   return module.exports;
 }
 
+test('directory and help routes provide loading and empty-state guidance', () => {
+  const directoryLoading = fs.readFileSync(path.resolve(__dirname, '../app/(dashboard)/loading.tsx'), 'utf8');
+  const helpLoading = fs.readFileSync(path.resolve(__dirname, '../app/(dashboard)/site/help/loading.tsx'), 'utf8');
+  const linkDashboard = fs.readFileSync(path.resolve(__dirname, '../components/link-dashboard.tsx'), 'utf8');
+  const helpPage = fs.readFileSync(path.resolve(__dirname, '../app/(dashboard)/site/help/page.tsx'), 'utf8');
+
+  assert.match(directoryLoading, /aria-busy="true"/);
+  assert.match(directoryLoading, /Loading the link directory/);
+  assert.match(helpLoading, /Loading help and usage guidance/);
+  assert.match(linkDashboard, /No public links to show/);
+  assert.match(linkDashboard, /contact district support/);
+  assert.match(helpPage, /Open a destination/);
+  assert.match(helpPage, /Copy or scan/);
+  assert.match(helpPage, /Find a link/);
+});
+
 const normalize = load('lib/normalize.ts');
 const invalidUrls = ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:text/html,hello', 'file:///etc/passwd', 'ftp://example.com', '//example.com', '/relative', 'not a URL', ''];
 

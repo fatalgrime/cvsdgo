@@ -121,9 +121,17 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
       </div>
 
       {links.length === 0 && (
-        <div className="panel mt-8 p-8 text-center">
-          <p className="text-lg font-semibold text-oxford-700 dark:text-slate-100">No public links are available.</p>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Check that links are assigned to public folders or have no folder selected.</p>
+        <div className="panel mt-8 p-8 text-center" role="status">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15" />
+              <path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.15-1.15" />
+            </svg>
+          </div>
+          <p className="mt-4 text-lg font-semibold text-oxford-700 dark:text-slate-100">No public links to show</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600 dark:text-slate-400">
+            The directory may be temporarily empty, or its links may not be published to a public folder. Please check back later or contact district support if you need help finding a resource.
+          </p>
         </div>
       )}
 

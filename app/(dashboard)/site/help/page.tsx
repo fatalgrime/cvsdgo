@@ -37,9 +37,15 @@ export default async function HelpPage() {
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-deepforest-700 dark:text-deepforest-400">Share links</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-deepforest-700 dark:text-deepforest-400">Open a destination</p>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-              Copy the short link from any card to send a shortened URL to others.
+              Select <strong>Open</strong> on a card to follow its official short link. A lock badge means the destination requires a password.
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-deepforest-700 dark:text-deepforest-400">Copy or scan</p>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+              Select <strong>Copy</strong> to copy the short URL for a message or document, or use the QR code button to display a scannable code.
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/60">
@@ -68,9 +74,15 @@ export default async function HelpPage() {
           </p>
           <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
             <div className="rounded-xl border border-oxford-200 bg-oxford-50/40 p-4 dark:border-oxford-700/50 dark:bg-oxford-900/20">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-oxford-700 dark:text-slate-200">Find a link</p>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                Use the directory search or command palette to locate links by their short name, title, or destination.
+              </p>
+            </div>
+            <div className="rounded-xl border border-oxford-200 bg-oxford-50/40 p-4 dark:border-oxford-700/50 dark:bg-oxford-900/20">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-oxford-700 dark:text-slate-200">Create &amp; update</p>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                Confirm the destination URL, add a descriptive title, and save changes to publish updates.
+                In Settings, open Link Management, confirm the destination URL, add a descriptive title, and save your changes. Check the public directory after saving to confirm the result.
               </p>
             </div>
             <div className="rounded-xl border border-oxford-200 bg-oxford-50/40 p-4 dark:border-oxford-700/50 dark:bg-oxford-900/20">
