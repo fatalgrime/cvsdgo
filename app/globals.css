@@ -260,3 +260,34 @@ img[alt*="QR Code"] {
     scroll-behavior: auto !important;
   }
 }
+
+/* Action colors follow the announcement tone in both themes. */
+.announcement-icon { background: color-mix(in srgb, var(--announcement-text) 9%, transparent); }
+.announcement-action {
+  display: inline-flex;
+  min-height: 44px;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  border: 1px solid var(--announcement-text);
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-decoration: none;
+  transition: box-shadow 160ms ease, background-color 160ms ease;
+}
+.announcement-action span { overflow-wrap: anywhere; }
+.announcement-action-primary {
+  color: var(--announcement-bg);
+  background: var(--announcement-text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+.announcement-action-secondary { color: var(--announcement-text); background: transparent; border-color: var(--announcement-border); }
+.announcement-action:hover { box-shadow: 0 3px 8px rgb(0 0 0 / 0.12); }
+.announcement-action-secondary:hover { background: color-mix(in srgb, var(--announcement-text) 8%, transparent); }
+@media (max-width: 479px) {
+  .announcement-action { width: 100%; }
+}

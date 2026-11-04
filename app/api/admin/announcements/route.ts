@@ -22,23 +22,23 @@ async function mutate(request: Request, action: "create" | "update" | "delete"):
     return new Response("Invalid announcement ID", { status: 400 });
   }
   const input = action === "delete" ? null : parseAnnouncement(body);
-  if (action !== "delete" && !input) return new Response("Provide a title (1–100 characters), message (1–1000 characters), and valid settings.", { status: 400 });
+  if (action !== "delete" && !input) return new Response("Provide a title (1–100 characters), message (1–1000 characters), and valid settings. Add up to 3 buttons, each with a label (1–40 characters) and an HTTP/HTTPS link or site path such as /site/help.", { status: 400 });
   await ensureAnnouncementSchema();
   const sql = getSql();
   const { userId } = await auth();
   let rows;
   if (action === "delete") {
-    rows = await sql`DELETE FROM announcements WHERE id = ${id} RETURNING id::text, title, message, tone, audience, dismissible, published, revision;`;
+    rows = await sql`DELETE FROM announcements WHERE id = ${id} RETURNING id::text, title, message, tone, audience, dismissible, published, revision, buttons;`;
   } else if (action === "update" && input) {
     rows = await sql`
       UPDATE announcements SET title = ${input.title}, message = ${input.message}, tone = ${input.tone},
-        audience = ${input.audience}, dismissible = ${input.dismissible}, published = ${input.published}, revision = revision + 1, updated_at = NOW()
-      WHERE id = ${id} RETURNING id::text, title, message, tone, audience, dismissible, published, revision;
+        audience = ${input.audience}, dismissible = ${input.dismissible}, published = ${input.published}, buttons = ${JSON.stringify(input.buttons ?? [])}::jsonb, revision = revision + 1, updated_at = NOW()
+      WHERE id = ${id} RETURNING id::text, title, message, tone, audience, dismissible, published, revision, buttons;
     `;
   } else if (input) {
     rows = await sql`
-      INSERT INTO announcements (title, message, tone, audience, dismissible, published)
-      VALUES (${input.title}, ${input.message}, ${input.tone}, ${input.audience}, ${input.dismissible}, ${input.published}) RETURNING id::text, title, message, tone, audience, dismissible, published, revision;
+      INSERT INTO announcements (title, message, tone, audience, dismissible, published, buttons)
+      VALUES (${input.title}, ${input.message}, ${input.tone}, ${input.audience}, ${input.dismissible}, ${input.published}, ${JSON.stringify(input.buttons ?? [])}::jsonb) RETURNING id::text, title, message, tone, audience, dismissible, published, revision, buttons;
     `;
   }
   if (!(rows as unknown[])?.length) return new Response("Announcement not found", { status: 404 });

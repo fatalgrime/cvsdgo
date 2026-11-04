@@ -589,3 +589,66 @@ test('site settings renders its tools for administrators', async () => {
   const result = await SettingsLayout({ children: 'private tools' });
   assert.equal(result.props.children[1], 'private tools');
 });
+
+
+test('announcement buttons validate destinations, labels, and limits while accepting older announcements', () => {
+  assert.deepEqual(announcementTypes.parseAnnouncement(announcementInput), announcementInput);
+  const buttons = [{ label: '  Learn more  ', url: ' /site/help ' }, { label: 'Visit district', url: 'https://cvsd.live' }];
+  assert.deepEqual(announcementTypes.parseAnnouncement({ ...announcementInput, buttons }).buttons, [
+    { label: 'Learn more', url: '/site/help' }, { label: 'Visit district', url: 'https://cvsd.live/' },
+  ]);
+  for (const url of ['javascript:alert(1)', 'data:text/html,hello', '//evil.example', '/\\evil.example', 'ftp://example.com', 'https://name:password@example.com', 'https://example.com/a b', 'relative', 'https://', '']) {
+    assert.equal(announcementTypes.parseAnnouncement({ ...announcementInput, buttons: [{ label: 'Go', url }] }), null, url);
+  }
+  for (const buttons of [null, {}, [null], [{ label: '', url: '/site/help' }], [{ label: 'x'.repeat(41), url: '/site/help' }], Array(4).fill({ label: 'Go', url: '/site/help' })]) {
+    assert.equal(announcementTypes.parseAnnouncement({ ...announcementInput, buttons }), null);
+  }
+});
+
+test('announcement create, update, removal and audit preserve button data', async () => {
+  for (const method of ['POST', 'PUT']) {
+    for (const buttons of [[{ label: 'Learn more', url: '/site/help' }], []]) {
+      const saved = { ...announcementInput, id: '1', revision: 2, buttons };
+      const queries = [];
+      const audits = [];
+      const route = load('app/api/admin/announcements/route.ts', {
+        '@clerk/nextjs/server': { auth: async () => ({ userId: 'admin' }) },
+        '@/lib/access': { requireAdminUser: async () => null },
+        '@/lib/audit': { getRequestContext: () => ({}), logAuditEvent: async event => audits.push(event) },
+        '@/lib/db': { hasDatabaseUrl: () => true, getSql: () => async (parts, ...values) => { queries.push({ sql: parts.join('?'), values }); return [saved]; } },
+        '@/lib/announcements': { ensureAnnouncementSchema: async () => {} },
+        '@/lib/announcement-types': announcementTypes,
+      });
+      const response = await route[method](new Request('https://example.com/api/admin/announcements', { method, body: JSON.stringify(saved) }));
+      assert.ok(response.ok);
+      assert.ok(queries[0].values.includes(JSON.stringify(buttons)));
+      assert.match(queries[0].sql, /buttons/);
+      assert.deepEqual(audits[0].metadata.announcement.buttons, buttons);
+    }
+  }
+  const { route, writes } = announcementAdmin();
+  const response = await route.POST(new Request('https://example.com/api/admin/announcements', { method: 'POST', body: JSON.stringify({ ...announcementInput, buttons: [{ label: 'Unsafe', url: 'javascript:alert(1)' }] }) }));
+  assert.equal(response.status, 400);
+  assert.equal(writes(), 0);
+});
+
+test('announcement cards render accessible styled links and filter unsafe stored links', () => {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const { AnnouncementCard } = load('components/announcement-banner.tsx', {
+    react: React, 'react/jsx-runtime': require('react/jsx-runtime'), '@/lib/announcement-types': announcementTypes,
+  });
+  const item = { ...announcementInput, id: '1', revision: 1, buttons: [
+    { label: 'Read <details>', url: '/site/help' },
+    { label: 'District website', url: 'https://cvsd.live' },
+    { label: 'Unsafe', url: 'javascript:alert(1)' },
+  ] };
+  const html = renderToStaticMarkup(React.createElement(AnnouncementCard, { item }));
+  assert.match(html, /href="\/site\/help"/);
+  assert.match(html, /Read &lt;details&gt;/);
+  assert.match(html, /announcement-action-primary/);
+  assert.match(html, /announcement-action-secondary/);
+  assert.doesNotMatch(html, /javascript:|Unsafe|target="_blank"/);
+  const old = renderToStaticMarkup(React.createElement(AnnouncementCard, { item: { ...announcementInput, id: '2', revision: 1 } }));
+  assert.doesNotMatch(old, /announcement-action/);
+});

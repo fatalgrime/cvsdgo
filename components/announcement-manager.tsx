@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { PageHeader } from "@/components/page-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AnnouncementCard } from "@/components/announcement-banner";
-import type { Announcement, AnnouncementInput } from "@/lib/announcement-types";
+import { MAX_ANNOUNCEMENT_BUTTONS, type Announcement, type AnnouncementInput } from "@/lib/announcement-types";
 
-const empty: AnnouncementInput = { audience: "everyone", title: "", message: "", tone: "info", dismissible: true, published: false };
+const empty: AnnouncementInput = { buttons: [], audience: "everyone", title: "", message: "", tone: "info", dismissible: true, published: false };
 const fieldClass = "mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-oxford-700 outline-none focus:border-oxford-500 focus:ring-2 focus:ring-oxford-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
 const buttonClass = "rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-oxford-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxford-500 disabled:opacity-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800";
 
@@ -58,7 +58,7 @@ export function AnnouncementManager() {
   }
   function edit(item: Announcement) {
     setEditing(item.id);
-    setForm({ audience: item.audience, title: item.title, message: item.message, tone: item.tone, dismissible: item.dismissible, published: item.published });
+    setForm({ buttons: item.buttons ?? [], audience: item.audience, title: item.title, message: item.message, tone: item.tone, dismissible: item.dismissible, published: item.published });
     setNotice(""); setError("");
     editor.current?.scrollIntoView({ block: "start", behavior: "smooth" });
     editor.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
@@ -81,6 +81,30 @@ export function AnnouncementManager() {
             <div><label htmlFor="announcement-message" className="block text-sm font-semibold">Message</label>
               <textarea id="announcement-message" className={fieldClass} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} maxLength={1000} rows={3} required placeholder="Share the details visitors need to know." />
               <p className="mt-1 text-xs text-slate-500">{form.message.length}/1000 characters · Plain text</p></div>
+            <fieldset className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+              <legend className="px-1 text-sm font-semibold">Announcement buttons <span className="font-normal text-slate-500">· Optional</span></legend>
+              <p id="announcement-buttons-help" className="text-sm text-slate-600 dark:text-slate-300">Give visitors a next step. Add up to three buttons; the first is highlighted.</p>
+              <div className="mt-4 space-y-3">
+                {(form.buttons ?? []).map((button, index) => (
+                  <div key={index} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Button {index + 1}{index === 0 ? " · Primary" : ""}</p>
+                      <button type="button" aria-label={"Remove announcement button " + (index + 1)} onClick={() => setForm({ ...form, buttons: form.buttons?.filter((_, position) => position !== index) })} className="rounded-lg px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950">Remove</button>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                      <div><label htmlFor={"announcement-button-label-" + index} className="block text-sm font-semibold">Button text</label>
+                        <input id={"announcement-button-label-" + index} className={fieldClass} value={button.label} maxLength={40} required placeholder="Learn more" onChange={e => setForm({ ...form, buttons: form.buttons?.map((item, position) => position === index ? { ...item, label: e.target.value } : item) })} /></div>
+                      <div><label htmlFor={"announcement-button-url-" + index} className="block text-sm font-semibold">Link</label>
+                        <input id={"announcement-button-url-" + index} className={fieldClass} type="text" inputMode="url" value={button.url} maxLength={2048} required aria-describedby="announcement-buttons-help announcement-button-links-help" placeholder="https://example.com or /site/help" onChange={e => setForm({ ...form, buttons: form.buttons?.map((item, position) => position === index ? { ...item, url: e.target.value } : item) })} /></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button type="button" disabled={(form.buttons?.length ?? 0) >= MAX_ANNOUNCEMENT_BUTTONS} onClick={() => setForm({ ...form, buttons: [...(form.buttons ?? []), { label: "", url: "" }] })} className={buttonClass + " mt-3 inline-flex min-h-11 items-center gap-2"}>
+                <span aria-hidden="true" className="text-lg leading-none">+</span> Add button
+              </button>
+              <p id="announcement-button-links-help" className="mt-2 text-xs text-slate-500">Use a full http:// or https:// address, or a path starting with /. Links open in the same tab.</p>
+            </fieldset>
             <div><label htmlFor="announcement-audience" className="block text-sm font-semibold">Audience</label>
               <select id="announcement-audience" className={fieldClass} value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value as AnnouncementInput["audience"] })}>
                 <option value="everyone">Everyone</option><option value="staff">Staff and admins only</option>
@@ -94,7 +118,7 @@ export function AnnouncementManager() {
               <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={form.published} onChange={e => setForm({ ...form, published: e.target.checked })} /><span><span className="block font-semibold">Publish announcement</span><span className="mt-1 block text-slate-500">Make it visible to the selected audience when saved. Otherwise, keep it as a draft.</span></span></label>
             </div>
             <div><p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Live preview</p>
-              <AnnouncementCard item={{ ...form, id: "preview", revision: 1, title: form.title || "Your announcement title", message: form.message || "Your announcement message will appear here." }} />
+              <AnnouncementCard preview item={{ ...form, id: "preview", revision: 1, title: form.title || "Your announcement title", message: form.message || "Your announcement message will appear here." }} />
               {editing && <p className="mt-2 text-xs text-slate-500">Saving an update makes this announcement visible again to visitors who dismissed an earlier version.</p>}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -114,8 +138,7 @@ export function AnnouncementManager() {
             <span className="text-slate-500">{item.audience === "staff" ? "Staff and admins only" : "Everyone"}</span>
             <span className="text-slate-500">{item.dismissible ? "Dismissible" : "Always visible"}</span>
           </div>
-          <h3 className="mt-3 break-words font-semibold">{item.title}</h3>
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-500">{item.message}</p>
+          <div className="mt-3"><AnnouncementCard item={item} /></div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" disabled={busy} onClick={() => edit(item)} className={buttonClass}>Edit</button>
             <button type="button" disabled={busy} onClick={() => void mutate("PUT", { ...item, published: !item.published }, item.published ? "Announcement unpublished." : "Announcement published.", editing === item.id)} className={buttonClass}>{item.published ? "Unpublish" : "Publish"}</button>

@@ -1,16 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { announcementKey, isAnnouncementVisible, type Announcement } from "@/lib/announcement-types";
+import { announcementKey, isAnnouncementVisible, parseAnnouncementButtons, type Announcement } from "@/lib/announcement-types";
 
 const storageKey = "cvsdgo:announcement-dismissals";
-export function AnnouncementCard({ item, onDismiss }: { item: Announcement; onDismiss?: () => void }) {
+export function AnnouncementCard({ item, onDismiss, preview = false }: { item: Announcement; onDismiss?: () => void; preview?: boolean }) {
+  const buttons = (item.buttons ?? []).flatMap(button => parseAnnouncementButtons([button]) ?? []).slice(0, 3);
   return (
     <article className={`announcement-card announcement-${item.tone}`} aria-label={item.title}>
-      <svg aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 10 14-5v14L3 14zM7 15l1 5h3l-1-4M21 8v8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      <svg aria-hidden="true" className="announcement-icon mt-0.5 h-9 w-9 shrink-0 rounded-xl p-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 10 14-5v14L3 14zM7 15l1 5h3l-1-4M21 8v8" strokeLinecap="round" strokeLinejoin="round" /></svg>
       <div className="min-w-0 flex-1">
         <h2 className="text-sm font-semibold leading-6 [overflow-wrap:anywhere]">{item.title}</h2>
         <p className="mt-0.5 whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">{item.message}</p>
+        {buttons.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {buttons.map((button, index) => (
+              <a key={index} href={button.url} onClick={preview ? event => event.preventDefault() : undefined} className={"announcement-action " + (index === 0 ? "announcement-action-primary" : "announcement-action-secondary")}>
+                <span>{button.label}</span>
+                <svg aria-hidden="true" className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
       {item.dismissible && onDismiss && (
         <button type="button" onClick={onDismiss} aria-label={`Dismiss announcement: ${item.title}`} className="announcement-dismiss -mr-2 -mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current">
