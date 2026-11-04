@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PreviousPolicyLink } from "@/components/previous-policy-link";
 import { PolicyMarkdown } from "@/components/policy-markdown";
 import { getPolicyDocument } from "@/lib/policies";
 
@@ -32,6 +33,7 @@ export default async function TermsOfServicePage() {
         <section aria-label="Policy content" className="mt-6 space-y-5">
           <PolicyMarkdown markdown={document.markdown} className="space-y-5 text-sm" />
         </section>
+        <PreviousPolicyLink documentKey="terms" />
       </article>
     </div>
   );
