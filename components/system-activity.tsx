@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/toast-provider";
+import { redactAuditData } from "@/lib/audit-redaction";
 import { PageHeader } from "@/components/page-header";
 
 type Severity = "info" | "warning" | "critical";
@@ -93,7 +94,7 @@ export default function StatusPage() {
       if (!response.ok) throw new Error(await response.text());
       const data = (await response.json()) as SettingsResponse;
       setHealth(data.health ?? null);
-      setAuditLogs(data.auditLogs ?? []);
+      setAuditLogs(redactAuditData(data.auditLogs ?? []));
       setLastUpdated(new Date());
     } catch (error) {
       if (!quiet) toast({ title: "Unable to load status", description: (error as Error).message, variant: "error" });
@@ -167,7 +168,7 @@ export default function StatusPage() {
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
           <div className="border-b border-slate-200 p-4 dark:border-slate-800 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h2 className="text-lg font-semibold text-oxford-700 dark:text-slate-100">Activity log</h2><p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Auto-refreshes every 30 seconds.</p></div>
+              <div><h2 className="text-lg font-semibold text-oxford-700 dark:text-slate-100">Activity log</h2><p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Auto-refreshes every 30 seconds. Sensitive credentials are hidden.</p></div>
               <div className="flex items-center gap-3">
                 <span className="hidden text-xs text-slate-500 sm:block">{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : `${filteredLogs.length} of ${auditLogs.length} events`}</span>
                 <button type="button" onClick={() => void loadStatus(true)} disabled={isRefreshing} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-oxford-400 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">

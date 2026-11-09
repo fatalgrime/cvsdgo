@@ -13,6 +13,7 @@ function load(relativePath, mocks = {}, globals = {}) {
   const module = { exports: {} };
   new Function('require', 'module', 'exports', ...Object.keys(globals), source)((name) => {
     if (Object.hasOwn(mocks, name)) return mocks[name];
+    if (name === "@/lib/audit-redaction") return load("lib/audit-redaction.ts");
     throw new Error(`Unexpected dependency: ${name}`);
   }, module, module.exports, ...Object.values(globals));
   return module.exports;

@@ -1,3 +1,4 @@
+import { auditSecretValues, redactAuditData } from "@/lib/audit-redaction";
 import { auth } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { ensureAuditSchema, getRequestContext, logAuditEvent, resolveAuditActorInfo } from "@/lib/audit";
@@ -8,14 +9,6 @@ type SettingsRequestBody = {
   settingValue?: unknown;
   action?: unknown;
 };
-
-function sanitizeAuditMetadata(metadata: Record<string, unknown> | null): Record<string, unknown> | null {
-  if (!metadata || metadata.settingKey !== "discord_webhook_url") return metadata;
-  const { previousValue: _previousValue, newValue: _newValue, ...safeMetadata } = metadata;
-  void _previousValue;
-  void _newValue;
-  return safeMetadata;
-}
 
 function redactIpAddress(value: string | null): string | null {
   if (!value) return null;
@@ -58,6 +51,7 @@ export async function GET(): Promise<Response> {
     ORDER BY setting_key ASC;
   `) as { setting_key: string; setting_value: string }[];
   const settings = Object.fromEntries(rows.map((row) => [row.setting_key, row.setting_value]));
+  const auditSecrets = [...auditSecretValues(process.env), ...auditSecretValues(settings)];
   const canEdit = canEditDiscordWebhook(userId);
   if (!canEdit && typeof settings.discord_webhook_url === "string") {
     settings.discord_webhook_url = settings.discord_webhook_url.replace(/.(?=.{4,}$)/g, "•");
@@ -109,13 +103,12 @@ export async function GET(): Promise<Response> {
     const safeUsername = username && (!email || username.toLowerCase() !== email.toLowerCase()) && !username.includes("@")
       ? username
       : null;
-    return {
+    return redactAuditData({
       ...enriched,
       actor_username: safeUsername,
       actor_email: null,
       actor_ip_address: redactIpAddress(enriched.actor_ip_address),
-      metadata: sanitizeAuditMetadata(enriched.metadata),
-    };
+    }, auditSecrets);
   });
   const webhookDeliveryValue = settings.discord_webhook_last_delivery_ok;
   const health = {
@@ -127,7 +120,7 @@ export async function GET(): Promise<Response> {
     latestActivityAt: logs[0]?.created_at ?? null,
   };
 
-  return Response.json({ settings, auditLogs: enrichedLogs, canEditWebhook: canEdit, canEditPolicies: accessProfile.admin, health });
+  return Response.json({ settings, auditLogs: enrichedLogs, canEditWebhook: canEdit, canEditPolicies: accessProfile.admin, health }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request): Promise<Response> {

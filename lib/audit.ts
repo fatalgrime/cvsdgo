@@ -1,3 +1,4 @@
+import { auditSecretValues, redactAuditData } from "@/lib/audit-redaction";
 import { clerkClient } from "@clerk/nextjs/server";
 import { getSql, hasDatabaseUrl } from "@/lib/db";
 import { getCachedUserInfo } from "@/lib/access";
@@ -245,7 +246,9 @@ export async function logAuditEvent(input: AuditEventInput): Promise<void> {
   try {
     await ensureAuditSchema();
 
-    const actor = await getActorInfo(input.actorUserId);
+    const secrets = auditSecretValues(process.env);
+    input = redactAuditData(input, secrets);
+    const actor = redactAuditData(await getActorInfo(input.actorUserId), secrets);
     const username = input.actorUsername ?? actor.username;
     const email = input.actorEmail ?? actor.email;
     const discordUsername = input.actorDiscordUsername ?? actor.discordUsername;
