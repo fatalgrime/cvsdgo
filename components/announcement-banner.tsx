@@ -15,7 +15,7 @@ export function AnnouncementCard({ item, onDismiss, preview = false }: { item: A
         {buttons.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {buttons.map((button, index) => (
-              <a key={index} href={button.url} onClick={preview ? event => event.preventDefault() : undefined} className={"announcement-action " + (index === 0 ? "announcement-action-primary" : "announcement-action-secondary")}>
+              <a key={index} href={button.url} data-announcement-preview={preview ? "" : undefined} onClick={preview ? event => event.preventDefault() : undefined} className={"announcement-action " + (index === 0 ? "announcement-action-primary" : "announcement-action-secondary")}>
                 <span>{button.label}</span>
                 <svg aria-hidden="true" className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
               </a>
@@ -34,6 +34,7 @@ export function AnnouncementCard({ item, onDismiss, preview = false }: { item: A
 
 export function AnnouncementBanner({ initial }: { initial: Announcement[] }) {
   const [items, setItems] = useState(initial);
+  const [now, setNow] = useState(() => Date.now());
   const [dismissed, setDismissed] = useState<string[]>([]);
   useEffect(() => {
     let active = true;
@@ -69,7 +70,20 @@ export function AnnouncementBanner({ initial }: { initial: Announcement[] }) {
       document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
-  const visible = items.filter(item => isAnnouncementVisible(item, dismissed));
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    function tick() {
+      clearTimeout(timer);
+      const current = Date.now();
+      setNow(current);
+      const boundaries = items.flatMap(item => [item.starts_at, item.expires_at]).filter((date): date is string => Boolean(date)).map(Date.parse).filter(time => time > current);
+      timer = setTimeout(tick, Math.min(60_000, ...boundaries.map(time => time - current)));
+    }
+    tick();
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", tick); };
+  }, [items]);
+  const visible = items.filter(item => isAnnouncementVisible(item, dismissed, now));
   if (!visible.length) return null;
   function dismiss(item: Announcement) {
     if (!item.dismissible) return;

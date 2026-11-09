@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { useToast } from "@/components/toast-provider";
+import { DraftRecoveryNotice } from "@/components/draft-recovery-notice";
+import { registerDialog } from "@/lib/dialog-stack";
+import { useEditorDraft, useUnsavedChanges } from "@/components/use-editor-draft";
 import { PolicyMarkdown } from "@/components/policy-markdown";
 import {
   hasMeaningfulPolicyContent,
@@ -25,35 +28,6 @@ type PolicyEditorProps = {
 type ActiveStage = "selection" | "loading" | "editor";
 type WorkspaceView = "split" | "source" | "preview";
 type SplitRatio = "source-wide" | "balanced" | "preview-wide";
-
-function handleDialogKeys(event: React.KeyboardEvent<HTMLDivElement>, onClose: () => void) {
-  event.stopPropagation();
-  if (event.key === "Escape") {
-    event.preventDefault();
-    onClose();
-    return;
-  }
-  if (event.key !== "Tab") return;
-  const focusable = Array.from(
-    event.currentTarget.querySelectorAll<HTMLElement>(
-      "a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])"
-    )
-  );
-  if (focusable.length === 0) {
-    event.preventDefault();
-    event.currentTarget.focus();
-    return;
-  }
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
-}
 
 type SelectionState = {
   stage: ActiveStage;
@@ -120,6 +94,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("split");
   const [splitRatio, setSplitRatio] = useState<SplitRatio>("balanced");
+  const closeDialogRef = useRef<() => void>(() => {});
+  closeDialogRef.current = confirmState.open ? () => setConfirmState({ open: false, reason: "discard" }) : isSelectionOpen ? closeSelectionDialog : isLoading ? () => {} : () => isFullscreen ? setIsFullscreen(false) : requestCloseEditor();
   const hasOpenedRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -130,6 +106,12 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
   }, []);
 
   const isDirty = useMemo(() => normalizeMarkdown(markdown) !== normalizeMarkdown(originalMarkdown) || effectiveDate.trim() !== originalEffectiveDate.trim(), [markdown, originalMarkdown, effectiveDate, originalEffectiveDate]);
+  const draft = useEditorDraft({
+    name: "policy:" + (selection.documentKey ?? ""), active: enabled && selection.stage === "editor",
+    value: { markdown, effectiveDate }, dirty: isDirty,
+    validate: (value): value is { markdown: string; effectiveDate: string } => Boolean(value && typeof value === "object" && typeof (value as Record<string, unknown>).markdown === "string" && typeof (value as Record<string, unknown>).effectiveDate === "string"),
+  });
+  useUnsavedChanges(enabled && selection.stage === "editor" && isDirty);
   const canSave = storageAvailable && !isSaving && getMeaningfulMarkdown(markdown) && Boolean(effectiveDate.trim()) && effectiveDate.trim().length <= 200;
   const workspaceGridClass = workspaceView !== "split"
     ? "grid-cols-1"
@@ -184,28 +166,13 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
       return;
     }
     hasOpenedRef.current = true;
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const inertElements: { element: HTMLElement; wasInert: boolean }[] = [];
+    let unregister: (() => void) | undefined;
     const frame = requestAnimationFrame(() => {
       const stage = confirmState.open ? "confirm" : isSelectionOpen ? "selection" : isLoading ? "loading" : "editor";
-      const panel = document.querySelector<HTMLElement>(`[data-policy-dialog="${stage}"]`);
-      if (!panel) return;
-      for (const child of Array.from(document.body.children)) {
-        if (child instanceof HTMLElement && !child.contains(panel)) {
-          inertElements.push({ element: child, wasInert: child.inert });
-          child.inert = true;
-        }
-      }
-      (panel.querySelector<HTMLElement>('button:not([disabled]), input, textarea') ?? panel).focus();
+      const panel = document.querySelector<HTMLElement>('[data-policy-dialog="' + stage + '"]');
+      if (panel) unregister = registerDialog(panel, () => closeDialogRef.current());
     });
-    return () => {
-      cancelAnimationFrame(frame);
-      inertElements.forEach(({ element, wasInert }) => { element.inert = wasInert; });
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus?.isConnected) previousFocus.focus();
-    };
+    return () => { cancelAnimationFrame(frame); unregister?.(); };
   }, [portalReady, isSelectionOpen, selection.stage, isLoading, confirmState.open]);
 
   async function openPolicyEditor(key: PolicyDocumentKey) {
@@ -260,6 +227,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
   }
 
   function requestCloseEditor() {
+    if (isSaving) return;
     if (isDirty) {
       setConfirmState({ open: true, reason: "discard" });
       return;
@@ -326,6 +294,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
   }
 
   async function saveDocument() {
+    if (isSaving) return;
     if (!selectedDocument) {
       return;
     }
@@ -373,6 +342,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
         description: "The updated policy content is now live.",
         variant: "success",
       });
+      draft.clear();
       resetEditorState();
     } catch (error) {
       const message = (error as Error).message || "Unable to save policy document.";
@@ -383,6 +353,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
   }
 
   function confirmDiscard() {
+    draft.clear();
     resetEditorState();
   }
 
@@ -423,7 +394,6 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   role="dialog"
                   aria-modal="true"
                   aria-label="Choose a policy document to edit"
-                  onKeyDown={(event) => handleDialogKeys(event, closeSelectionDialog)}
                 >
                   <div className="relative flex items-start justify-between gap-4 overflow-hidden bg-oxford-700 px-6 py-6 text-white sm:px-8">
                     <div className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full border-[24px] border-white/5" />
@@ -437,7 +407,6 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                       onClick={closeSelectionDialog}
                       className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-lg font-semibold text-white transition hover:bg-white/20"
                       aria-label="Close policy selection"
-                      autoFocus
                     >
                       ×
                     </button>
@@ -536,7 +505,6 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   role="dialog"
                   aria-modal="true"
                   aria-label={`Edit ${selectedDocument.label}`}
-                  onKeyDown={(event) => handleDialogKeys(event, () => isFullscreen ? setIsFullscreen(false) : requestCloseEditor())}
                 >
                   <div className="relative flex flex-wrap items-start justify-between gap-4 overflow-hidden border-b border-oxford-600 bg-oxford-700 px-6 py-5 text-white">
                     <div className="pointer-events-none absolute -right-12 -top-20 h-44 w-44 rounded-full border-[26px] border-white/5" />
@@ -575,8 +543,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                       <button
                         type="button"
                         onClick={requestCloseEditor}
-                        autoFocus
-                        className="relative rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+                          className="relative rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
                       >
                         Cancel
                       </button>
@@ -596,12 +563,14 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                     </div>
                   </div>
 
+                  {draft.recovered && <div className="px-5 pt-3"><DraftRecoveryNotice onRestore={() => { if (isDirty && !window.confirm("Replace your current edits with the recovered draft?")) return; const recovered = draft.recovered; if (recovered) { setMarkdown(recovered.markdown); setEffectiveDate(recovered.effectiveDate); draft.clear(); } }} onDiscard={draft.clear} /></div>}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/60 sm:px-6">
                     <div role="group" className="flex flex-wrap items-center gap-2" aria-label="Markdown formatting tools">
                       <span className="mr-1 hidden text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 xl:inline">Insert</span>
                       {Object.entries(MARKDOWN_SNIPPETS).map(([key, value]) => (
                       <button
                         key={key}
+                        disabled={isSaving}
                         type="button"
                         onClick={() => {
                           switch (key) {
@@ -647,7 +616,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
 
                   <div className="border-b border-slate-200 px-5 py-3 dark:border-slate-800">
                     <label htmlFor="policy-effective-date" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Effective date</label>
-                    <input id="policy-effective-date" type="text" value={effectiveDate} onChange={(event) => setEffectiveDate(event.target.value)} maxLength={200} required aria-describedby="policy-effective-date-help" className="mt-1 w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" />
+                    <input disabled={isSaving} id="policy-effective-date" type="text" value={effectiveDate} onChange={(event) => setEffectiveDate(event.target.value)} maxLength={200} required aria-describedby="policy-effective-date-help" className="mt-1 w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100" />
                     <p id="policy-effective-date-help" className="mt-1 text-xs text-slate-600 dark:text-slate-300">Shown below Last updated on the public policy. For example: March 10, 2026.</p>
                   </div>
                   <div className={`grid min-h-0 flex-1 ${workspaceGridClass}`}>
@@ -657,6 +626,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                         <p className="text-xs text-slate-500 dark:text-slate-400">{markdown.trim().split(/\n+/).length} lines</p>
                       </div>
                       <textarea
+                        disabled={isSaving}
                         id="policy-markdown-source"
                         ref={textareaRef}
                         value={markdown}
@@ -688,7 +658,7 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                       {selectedDocument.updatedAt ? <span>Last saved: {new Date(selectedDocument.updatedAt).toLocaleString()}</span> : <span>Using default content</span>}
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <span>{isDirty ? "Unsaved edits detected" : "No unsaved changes"}</span>
+                      <span role="status">{draft.storageFailed ? "Draft recovery unavailable in this browser" : isDirty ? "Unsaved edits · Draft kept in this tab" : "No unsaved changes"}</span>
                       {!getMeaningfulMarkdown(markdown) ? <span className="text-rose-600 dark:text-rose-400">Document cannot be empty</span> : null}
                     </div>
                   </div>
@@ -714,7 +684,6 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   role="alertdialog"
                   aria-modal="true"
                   aria-label="Discard unsaved policy changes"
-                  onKeyDown={(event) => handleDialogKeys(event, () => setConfirmState({ open: false, reason: "discard" }))}
                 >
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-deepforest-700">Discard changes?</p>
                   <h3 className="mt-2 font-serif text-2xl text-oxford-700 dark:text-slate-100">You have unsaved edits</h3>
@@ -724,8 +693,8 @@ export function PolicyEditor({ enabled }: PolicyEditorProps) {
                   <div className="mt-6 flex flex-wrap justify-end gap-3">
                     <button
                       type="button"
+                      data-dialog-autofocus
                       onClick={() => setConfirmState({ open: false, reason: "discard" })}
-                      autoFocus
                       className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     >
                       Keep editing

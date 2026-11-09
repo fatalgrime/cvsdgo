@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type KeyboardEventHandler, type ReactNode 
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
+import { isTopDialog, registerDialog } from "@/lib/dialog-stack";
+
 type AccessibleDialogProps = {
   open: boolean;
   onClose: () => void;
@@ -15,18 +17,6 @@ type AccessibleDialogProps = {
   onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
   zIndexClassName?: string;
 };
-
-const FOCUSABLE = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  "[tabindex]:not([tabindex='-1'])",
-].join(",");
-
-let openDialogCount = 0;
-let originalBodyOverflow = "";
 
 export function AccessibleDialog({
   open,
@@ -41,7 +31,13 @@ export function AccessibleDialog({
 }: AccessibleDialogProps) {
   const [portalReady, setPortalReady] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  // Capture the trigger before React mounts any auto-focused modal controls.
+  if (open && !wasOpenRef.current && typeof document !== "undefined") {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+  wasOpenRef.current = open;
   const onCloseRef = useRef(onClose);
   const reduceMotion = useReducedMotion();
 
@@ -52,55 +48,9 @@ export function AccessibleDialog({
   }, [onClose]);
 
   useEffect(() => {
-    if (!open) return;
-
-    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (openDialogCount === 0) {
-      originalBodyOverflow = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-    }
-    openDialogCount += 1;
-
-    const frame = window.requestAnimationFrame(() => {
-      const firstFocusable = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE);
-      (firstFocusable ?? panelRef.current)?.focus();
-    });
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-
-      if (event.key !== "Tab" || !panelRef.current) return;
-      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
-      if (focusable.length === 0) {
-        event.preventDefault();
-        panelRef.current.focus();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener("keydown", handleKeyDown);
-      openDialogCount = Math.max(0, openDialogCount - 1);
-      if (openDialogCount === 0) document.body.style.overflow = originalBodyOverflow;
-      previousFocusRef.current?.focus();
-    };
-  }, [open]);
+    if (!open || !portalReady || !panelRef.current) return;
+    return registerDialog(panelRef.current, () => onCloseRef.current(), returnFocusRef.current);
+  }, [open, portalReady]);
 
   if (!portalReady || typeof document === "undefined") return null;
 
@@ -116,7 +66,7 @@ export function AccessibleDialog({
           exit={{ opacity: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) onClose();
+            if (event.target === event.currentTarget && isTopDialog(panelRef.current)) onClose();
           }}
         >
           <motion.div
@@ -125,7 +75,7 @@ export function AccessibleDialog({
             aria-modal="true"
             aria-label={ariaLabel}
             tabIndex={-1}
-            onKeyDown={onKeyDown}
+            onKeyDown={event => { if (isTopDialog(panelRef.current)) onKeyDown?.(event); }}
             className={`modal-panel ${panelClassName}`}
             initial={reduceMotion ? false : { opacity: 0, y: align === "top" ? -10 : 10, scale: 0.985 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

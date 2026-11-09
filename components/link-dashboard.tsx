@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RedirectRow } from "@/lib/types";
+import { CopyLinkFeedback, useCopyLink } from "@/components/copy-link-feedback";
 import { DirectoryLinkCard } from "@/components/directory-link-card";
 
 type LinkDashboardProps = {
@@ -11,7 +12,7 @@ type LinkDashboardProps = {
 
 export function LinkDashboard({ links }: LinkDashboardProps) {
   const router = useRouter();
-  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const copy = useCopyLink();
   const [isDirectoryUpdated, setIsDirectoryUpdated] = useState(false);
 
   useEffect(() => {
@@ -87,18 +88,9 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
       });
   }, [links]);
 
-  async function handleCopy(slug: string) {
-    const shortLink = `https://go.cvsd.live/${slug}`;
-    await navigator.clipboard.writeText(shortLink);
-    setCopiedSlug(slug);
-
-    setTimeout(() => {
-      setCopiedSlug((current) => (current === slug ? null : current));
-    }, 1400);
-  }
-
   return (
     <section className="w-full pb-6">
+      <CopyLinkFeedback {...copy} />
       <div className="space-y-10">
         {groupedLinks.map((group) => (
           <section key={group.title} className="space-y-4">
@@ -113,7 +105,7 @@ export function LinkDashboard({ links }: LinkDashboardProps) {
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {group.links.map((link) => (
-                <DirectoryLinkCard key={link.id} link={link} copied={copiedSlug === link.slug} onCopy={handleCopy} />
+                <DirectoryLinkCard key={link.id} link={link} copied={copy.copiedSlug === link.slug} onCopy={copy.copyLink} />
               ))}
             </div>
           </section>

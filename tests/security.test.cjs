@@ -454,7 +454,9 @@ test('announcement queries filter audience and publication independently with sa
     await getAnnouncements(...args);
     const query = queries.at(-1);
     assert.match(query.sql, /WHERE \(published = TRUE OR \?\)\s+AND \(audience = 'everyone' OR \?\)/);
-    assert.deepEqual(query.values, [args[0] ?? false, args[1] ?? false]);
+    assert.deepEqual(query.values, [args[0] ?? false, args[1] ?? false, args[0] ?? false]);
+    assert.match(query.sql, /starts_at <= NOW\(\)/);
+    assert.match(query.sql, /expires_at > NOW\(\)/);
   }
   assert.ok(queries.some(query => query.sql.includes('ADD COLUMN IF NOT EXISTS audience')));
 });
@@ -597,6 +599,10 @@ test('announcement buttons validate destinations, labels, and limits while accep
   assert.deepEqual(announcementTypes.parseAnnouncement({ ...announcementInput, buttons }).buttons, [
     { label: 'Learn more', url: '/site/help' }, { label: 'Visit district', url: 'https://cvsd.live/' },
   ]);
+  for (const url of ['mailto:office@cvsd.live', 'mailto:office@cvsd.live?subject=Website%20help&body=Hello%20there', 'MAILTO:office@cvsd.live']) {
+    const parsed = announcementTypes.parseAnnouncement({ ...announcementInput, buttons: [{ label: 'Email us', url }] });
+    assert.equal(parsed.buttons[0].url, new URL(url).toString());
+  }
   for (const url of ['javascript:alert(1)', 'data:text/html,hello', '//evil.example', '/\\evil.example', 'ftp://example.com', 'https://name:password@example.com', 'https://example.com/a b', 'relative', 'https://', '']) {
     assert.equal(announcementTypes.parseAnnouncement({ ...announcementInput, buttons: [{ label: 'Go', url }] }), null, url);
   }
@@ -607,7 +613,7 @@ test('announcement buttons validate destinations, labels, and limits while accep
 
 test('announcement create, update, removal and audit preserve button data', async () => {
   for (const method of ['POST', 'PUT']) {
-    for (const buttons of [[{ label: 'Learn more', url: '/site/help' }], []]) {
+    for (const buttons of [[{ label: 'Learn more', url: '/site/help' }], [{ label: 'Email us', url: 'mailto:office@cvsd.live?subject=Website%20help' }], []]) {
       const saved = { ...announcementInput, id: '1', revision: 2, buttons };
       const queries = [];
       const audits = [];
@@ -641,11 +647,14 @@ test('announcement cards render accessible styled links and filter unsafe stored
   const item = { ...announcementInput, id: '1', revision: 1, buttons: [
     { label: 'Read <details>', url: '/site/help' },
     { label: 'District website', url: 'https://cvsd.live' },
+    { label: 'Email us', url: 'mailto:office@cvsd.live?subject=Website%20help' },
     { label: 'Unsafe', url: 'javascript:alert(1)' },
   ] };
   const html = renderToStaticMarkup(React.createElement(AnnouncementCard, { item }));
   assert.match(html, /href="\/site\/help"/);
   assert.match(html, /Read &lt;details&gt;/);
+  assert.ok(html.includes('href="mailto:office@cvsd.live?subject=Website%20help"'));
+  assert.ok(html.includes('Email us'));
   assert.match(html, /announcement-action-primary/);
   assert.match(html, /announcement-action-secondary/);
   assert.doesNotMatch(html, /javascript:|Unsafe|target="_blank"/);

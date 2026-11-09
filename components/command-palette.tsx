@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useDeferredValue } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { CopyLinkFeedback, useCopyLink } from "@/components/copy-link-feedback";
 import { AccessibleDialog } from "@/components/accessible-dialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -119,7 +120,7 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
   });
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const copy = useCopyLink();
   const inputRef = useRef<HTMLInputElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
@@ -424,12 +425,7 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
 
   async function handleCopyLink(slug: string, event: React.MouseEvent) {
     event.stopPropagation();
-    const shortLink = `https://go.cvsd.live/${slug}`;
-    await navigator.clipboard.writeText(shortLink);
-    setCopiedSlug(slug);
-    setTimeout(() => {
-      setCopiedSlug((current) => (current === slug ? null : current));
-    }, 1500);
+    await copy.copyLink(slug);
   }
 
   // --- Step-by-Step Response Handler for Conversational Workflows ---
@@ -1644,7 +1640,7 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
                                           }`}
                                         title="Copy short link"
                                       >
-                                        {copiedSlug === link.slug ? "Copied!" : "Copy"}
+                                        {copy.copiedSlug === link.slug ? "Copied!" : "Copy"}
                                       </button>
                                     </div>
                                   </div>
@@ -1741,6 +1737,7 @@ export function CommandPalette({ open: controlledOpen, onClose, initialActionTyp
                       {aiMode ? "CVSD Go AI Actions" : "CVSD Go unified search"}
                     </span>
                   </div>
+        <CopyLinkFeedback {...copy} />
       </AccessibleDialog>
     </>
   );

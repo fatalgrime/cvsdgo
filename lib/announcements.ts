@@ -21,6 +21,8 @@ export async function ensureAnnouncementSchema(): Promise<void> {
       `;
       await sql`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'everyone' CHECK (audience IN ('everyone', 'staff'));`;
       await sql`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS buttons JSONB NOT NULL DEFAULT '[]'::jsonb;`;
+      await sql`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ;`;
+      await sql`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;`;
     })().catch((error) => { schemaPromise = null; throw error; });
   }
   await schemaPromise;
@@ -30,9 +32,10 @@ export async function getAnnouncements(includeDrafts = false, includeStaff = fal
   await ensureAnnouncementSchema();
   const sql = getSql();
   return await sql`
-    SELECT id::text, title, message, tone, audience, dismissible, published, revision, buttons
+    SELECT id::text, title, message, tone, audience, dismissible, published, revision, buttons, starts_at, expires_at
     FROM announcements WHERE (published = TRUE OR ${includeDrafts})
       AND (audience = 'everyone' OR ${includeStaff})
+      AND (${includeDrafts} OR ((starts_at IS NULL OR starts_at <= NOW()) AND (expires_at IS NULL OR expires_at > NOW())))
     ORDER BY created_at DESC, id DESC;
   ` as Announcement[];
 }
